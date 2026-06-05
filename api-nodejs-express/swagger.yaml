@@ -1,0 +1,210 @@
+openapi: 3.0.0
+info:
+  title: IoT Device & Telemetry API
+  description: API for managing IoT Devices and Telemetry
+  version: 3.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+tags:
+  - name: Devices
+    description: Operations related to managing device attributes
+  - name: Telemetry
+    description: Operations related to pushing and retrieving time-series data
+paths:
+  /api/devices:
+    post:
+      tags:
+        - Devices
+      summary: Create a new device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceInput'
+      responses:
+        '201':
+          description: Device created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '400':
+          description: Invalid input
+    get:
+      tags:
+        - Devices
+      summary: Retrieve a list of devices
+      responses:
+        '200':
+          description: A JSON array of devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+
+  /api/devices/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Device UUID
+    get:
+      tags:
+        - Devices
+      summary: Get a device by ID
+      responses:
+        '200':
+          description: Device details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          description: Device not found
+    put:
+      tags:
+        - Devices
+      summary: Update a device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceInput'
+      responses:
+        '200':
+          description: Device updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '400':
+          description: Invalid input
+        '404':
+          description: Device not found
+    delete:
+      tags:
+        - Devices
+      summary: Delete a device
+      responses:
+        '204':
+          description: Device deleted successfully
+        '404':
+          description: Device not found
+
+  /api/devices/{id}/telemetry:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Device UUID
+    get:
+      tags:
+        - Telemetry
+      summary: Get latest telemetry for a device
+      responses:
+        '200':
+          description: A JSON object of the latest telemetry record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Telemetry'
+        '404':
+          description: Device not found
+    post:
+      tags:
+        - Telemetry
+      summary: Push telemetry to a device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryInput'
+      responses:
+        '201':
+          description: Telemetry saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Telemetry'
+        '404':
+          description: Device not found
+
+components:
+  schemas:
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          example: "Living Room Sensor"
+        type:
+          type: string
+          example: "TEMP_HUMIDITY"
+        status:
+          type: string
+          example: "ACTIVE"
+        createdAt:
+          type: integer
+          example: 1717550000000
+    DeviceInput:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Living Room Sensor"
+        type:
+          type: string
+          example: "TEMP_HUMIDITY"
+        status:
+          type: string
+          example: "ACTIVE"
+    Telemetry:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        deviceId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        temperature:
+          type: number
+          format: float
+          example: 22.5
+        humidity:
+          type: number
+          format: float
+          example: 45.0
+        ts:
+          type: integer
+          example: 1717550000000
+    TelemetryInput:
+      type: object
+      properties:
+        temperature:
+          type: number
+          format: float
+          example: 22.5
+        humidity:
+          type: number
+          format: float
+          example: 45.0
