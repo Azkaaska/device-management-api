@@ -1,0 +1,14 @@
+# Java / Spring Boot
+target/
+*.jar
+*.war
+.settings/
+.classpath
+.project
+
+# IDEs and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
