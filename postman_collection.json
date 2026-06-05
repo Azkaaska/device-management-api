@@ -1,0 +1,201 @@
+{
+  "info": {
+    "_postman_id": "e32d8d51-0ecc-4a3e-aaa5-50a3a8c9ac96",
+    "name": "IoT Device Management API",
+    "description": "API collection to test the IoT Device Management application.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "55332638",
+    "_collection_link": "https://go.postman.co/collection/55332638-e32d8d51-0ecc-4a3e-aaa5-50a3a8c9ac96?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Get all devices",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/devices",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "devices"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create a new device",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "pm.environment.set(\"DEVICE_ID\", jsonData.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Bedroom Sensor\",\n    \"type\": \"TEMP_HUMIDITY\",\n    \"status\": \"ACTIVE\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/devices",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "devices"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get device by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/devices/{{DEVICE_ID}}",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "devices",
+            "{{DEVICE_ID}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update a device",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"Bedroom Sensor Updated\",\n    \"type\": \"TEMP\",\n    \"status\": \"INACTIVE\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/devices/{{DEVICE_ID}}",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "devices",
+            "{{DEVICE_ID}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Push Telemetry",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"temperature\": 25.0,\n    \"humidity\": 48.0\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/devices/{{DEVICE_ID}}/telemetry",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "devices",
+            "{{DEVICE_ID}}",
+            "telemetry"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Latest Telemetry",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/devices/{{DEVICE_ID}}/telemetry",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "devices",
+            "{{DEVICE_ID}}",
+            "telemetry"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete a device",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/devices/{{DEVICE_ID}}",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "devices",
+            "{{DEVICE_ID}}"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
