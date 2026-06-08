@@ -19,7 +19,7 @@ const Device = sequelize.define('Device', {
         type: DataTypes.STRING,
         defaultValue: 'ACTIVE'
     },
-    createdAt: {
+    created_at: {
         type: DataTypes.BIGINT,
         allowNull: false
     }
@@ -28,8 +28,8 @@ const Device = sequelize.define('Device', {
     timestamps: false, 
     hooks: {
         beforeValidate: (device, options) => {
-            if (!device.createdAt) {
-                device.createdAt = Date.now();
+            if (!device.created_at) {
+                device.created_at = Date.now();
             }
         }
     }

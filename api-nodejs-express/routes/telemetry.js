@@ -13,7 +13,7 @@ router.get('/:id/telemetry', async (req, res) => {
         }
 
         const telemetry = await Telemetry.findOne({
-            where: { deviceId: id },
+            where: { device_id: id },
             order: [['ts', 'DESC']]
         });
         
@@ -29,7 +29,7 @@ router.post('/:id/telemetry', async (req, res) => {
         const { temperature, humidity } = req.body;
         
         const telemetry = await Telemetry.create({
-            deviceId: id,
+            device_id: id,
             temperature,
             humidity,
             ts: Date.now()

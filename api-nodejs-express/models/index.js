@@ -3,8 +3,8 @@ const Device = require('./Device');
 const Telemetry = require('./Telemetry');
 
 // Define Associations
-Device.hasMany(Telemetry, { foreignKey: 'deviceId', onDelete: 'CASCADE' });
-Telemetry.belongsTo(Device, { foreignKey: 'deviceId' });
+Device.hasMany(Telemetry, { foreignKey: 'device_id', onDelete: 'CASCADE' });
+Telemetry.belongsTo(Device, { foreignKey: 'device_id' });
 
 module.exports = {
     sequelize,

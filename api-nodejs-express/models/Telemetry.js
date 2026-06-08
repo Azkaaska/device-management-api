@@ -7,7 +7,7 @@ const Telemetry = sequelize.define('Telemetry', {
         primaryKey: true,
         autoIncrement: true
     },
-    deviceId: {
+    device_id: {
         type: DataTypes.UUID,
         allowNull: false
     },
