@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { Device } = require('../models');
 
+router.get('/', async (req, res) => {
+    try {
+        const devices = await Device.findAll();
+        res.json(devices);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.post('/', async (req, res) => {
     try {
         const { name, type, status } = req.body;
@@ -10,15 +19,6 @@ router.post('/', async (req, res) => {
         }
         const device = await Device.create({ name, type, status });
         res.status(201).json(device);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-router.get('/', async (req, res) => {
-    try {
-        const devices = await Device.findAll();
-        res.json(devices);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
