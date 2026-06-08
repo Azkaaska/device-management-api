@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: IoT Device & Telemetry API
   description: API for managing IoT Devices and Telemetry
-  version: 3.0.0
+  version: 1.0.0
 servers:
   - url: http://localhost:3000
     description: Local development server
@@ -13,10 +13,25 @@ tags:
     description: Operations related to pushing and retrieving time-series data
 paths:
   /api/devices:
+    get:
+      tags:
+        - Devices
+      summary: Retrieve a list of devices
+      description: Returns an array of all registered devices
+      responses:
+        '200':
+          description: A JSON array of devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
     post:
       tags:
         - Devices
       summary: Create a new device
+      description: "Registers a new IoT device in the system"
       requestBody:
         required: true
         content:
@@ -32,21 +47,8 @@ paths:
                 $ref: '#/components/schemas/Device'
         '400':
           description: Invalid input
-    get:
-      tags:
-        - Devices
-      summary: Retrieve a list of devices
-      responses:
-        '200':
-          description: A JSON array of devices
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Device'
 
-  /api/devices/{id}:
+  /api/devices/{device_id}:
     parameters:
       - in: path
         name: id
@@ -54,11 +56,13 @@ paths:
         schema:
           type: string
           format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
         description: Device UUID
     get:
       tags:
         - Devices
       summary: Get a device by ID
+      description: Returns detailed information about a specific device
       responses:
         '200':
           description: Device details
@@ -72,6 +76,7 @@ paths:
       tags:
         - Devices
       summary: Update a device
+      descrpition: Updates the attributes of an existing device
       requestBody:
         required: true
         content:
@@ -93,13 +98,14 @@ paths:
       tags:
         - Devices
       summary: Delete a device
+      description: Permanently removes a device from the system
       responses:
         '204':
           description: Device deleted successfully
         '404':
           description: Device not found
 
-  /api/devices/{id}/telemetry:
+  /api/devices/{device_id}/telemetry:
     parameters:
       - in: path
         name: id
@@ -107,11 +113,13 @@ paths:
         schema:
           type: string
           format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
         description: Device UUID
     get:
       tags:
         - Telemetry
       summary: Get latest telemetry for a device
+      description: Retrieves the single most recent telemetry record
       responses:
         '200':
           description: A JSON object of the latest telemetry record
@@ -125,6 +133,7 @@ paths:
       tags:
         - Telemetry
       summary: Push telemetry to a device
+      description: Records a new telemetry data point for a specific device
       requestBody:
         required: true
         content:
@@ -145,6 +154,9 @@ components:
   schemas:
     Device:
       type: object
+      required:
+        - device_id
+        - name
       properties:
         id:
           type: string
@@ -159,7 +171,7 @@ components:
         status:
           type: string
           example: "ACTIVE"
-        createdAt:
+        created_at:
           type: integer
           example: 1717550000000
     DeviceInput:
@@ -178,11 +190,14 @@ components:
           example: "ACTIVE"
     Telemetry:
       type: object
+      required:
+        - id
+        - device_id
       properties:
         id:
           type: integer
           example: 1
-        deviceId:
+        device_id:
           type: string
           format: uuid
           example: "550e8400-e29b-41d4-a716-446655440000"
