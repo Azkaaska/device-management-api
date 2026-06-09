@@ -1,6 +1,7 @@
 package com.iot.deviceapi.controller;
 
 import com.iot.deviceapi.model.Device;
+import com.iot.deviceapi.model.DeviceInput;
 import com.iot.deviceapi.repository.DeviceRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,23 +21,28 @@ public class DeviceController {
     @Autowired
     private DeviceRepository deviceRepository;
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a new device", description = "Registers a new IoT device in the system")
-    public Device createDevice(@RequestBody Device input) {
-        if (input.getName() == null || input.getName().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
-        }
-        if (input.getStatus() == null) {
-            input.setStatus("ACTIVE");
-        }
-        return deviceRepository.save(input);
-    }
-
     @GetMapping
     @Operation(summary = "Retrieve a list of devices", description = "Returns an array of all registered devices")
     public List<Device> getAllDevices() {
         return deviceRepository.findAll();
+    }
+    
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a new device", description = "Registers a new IoT device in the system")
+    public Device createDevice(@RequestBody DeviceInput input) {
+        if (input.getName() == null || input.getName().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
+        }
+        Device device = new Device();
+        device.setName(input.getName());
+        device.setType(input.getType());
+        if (input.getStatus() == null) {
+            device.setStatus("ACTIVE");
+        } else {
+            device.setStatus(input.getStatus());
+        }
+        return deviceRepository.save(device);
     }
 
     @GetMapping("/{id}")
@@ -48,7 +54,7 @@ public class DeviceController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a device", description = "Updates the attributes of an existing device")
-    public Device updateDevice(@PathVariable UUID id, @RequestBody Device input) {
+    public Device updateDevice(@PathVariable UUID id, @RequestBody DeviceInput input) {
         if (input.getName() == null || input.getName().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
         }
