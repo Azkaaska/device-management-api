@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Any, Annotated
+from uuid import UUID
 
 import models, schemas, database
 
@@ -11,7 +12,7 @@ router = APIRouter(
 )
 
 @router.get("/{device_id}/telemetry", response_model=schemas.Telemetry, summary="Get latest telemetry for a device", description="Retrieves the single most recent telemetry record")
-def read_telemetry(device_id: Annotated[str, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(database.get_db)):
+def read_telemetry(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(database.get_db)):
     db_device_id = db.query(models.Device.id).filter(models.Device.id == device_id).first()
     if db_device_id is None:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -23,7 +24,7 @@ def read_telemetry(device_id: Annotated[str, Path(example="550e8400-e29b-41d4-a7
     return {}
 
 @router.post("/{device_id}/telemetry", response_model=schemas.Telemetry, status_code=status.HTTP_201_CREATED, summary="Push telemetry to a device", description="Records a new telemetry data point for a specific device")
-def create_telemetry(device_id: Annotated[str, Path(example="550e8400-e29b-41d4-a716-446655440000")], telemetry: schemas.TelemetryInput, db: Session = Depends(database.get_db)):
+def create_telemetry(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], telemetry: schemas.TelemetryInput, db: Session = Depends(database.get_db)):
     db_telemetry = models.Telemetry(
         device_id=device_id,
         temperature=telemetry.temperature,

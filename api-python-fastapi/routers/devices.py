@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 from typing import List, Annotated
+from uuid import UUID
 
 import models, schemas, database
 
@@ -27,14 +28,14 @@ def create_device(device: schemas.DeviceInput, db: Session = Depends(database.ge
     return db_device
 
 @router.get("/{device_id}", response_model=schemas.Device, summary="Get a device by ID", description="Returns detailed information about a specific device")
-def read_device(device_id: Annotated[str, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(database.get_db)):
+def read_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(database.get_db)):
     device = db.query(models.Device).filter(models.Device.id == device_id).first()
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
     return device
 
 @router.put("/{device_id}", response_model=schemas.Device, summary="Update a device", description="Updates the attributes of an existing device")
-def update_device(device_id: Annotated[str, Path(example="550e8400-e29b-41d4-a716-446655440000")], device: schemas.DeviceInput, db: Session = Depends(database.get_db)):
+def update_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], device: schemas.DeviceInput, db: Session = Depends(database.get_db)):
     db_device = db.query(models.Device).filter(models.Device.id == device_id).first()
     if db_device is None:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -50,7 +51,7 @@ def update_device(device_id: Annotated[str, Path(example="550e8400-e29b-41d4-a71
     return db_device
 
 @router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a device", description="Permanently removes a device from the system")
-def delete_device(device_id: Annotated[str, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(database.get_db)):
+def delete_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(database.get_db)):
     db_device = db.query(models.Device).filter(models.Device.id == device_id).first()
     if db_device is None:
         raise HTTPException(status_code=404, detail="Device not found")
