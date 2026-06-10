@@ -29,4 +29,4 @@ All three APIs share the exact same database schema and routing conventions:
 ## Testing & Documentation
 A unified `postman_collection.json` is provided in the root directory. You can import this into Postman to test any of the three servers immediately (it handles UUID injection dynamically).
 
-All three APIs also expose interactive Swagger/OpenAPI documentation at: `http://localhost:3000/api-docs`
+All three APIs also expose interactive Swagger/OpenAPI documentation at: `http://localhost:3000/docs-ui`

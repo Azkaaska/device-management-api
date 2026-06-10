@@ -24,7 +24,7 @@ tags_metadata = [
 ]
 
 app = FastAPI(
-    docs_url="/api-docs",
+    docs_url="/docs-ui",
     title="IoT Device & Telemetry API",
     description="API for managing IoT Devices and Telemetry",
     version="1.0.0",

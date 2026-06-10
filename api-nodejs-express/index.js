@@ -14,7 +14,7 @@ app.disable('x-powered-by');
 
 // Load Swagger document
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use('/docs-ui', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Mount routers
 app.use('/api/devices', devicesRouter);
