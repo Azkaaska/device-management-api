@@ -2,10 +2,8 @@
   "info": {
     "_postman_id": "e32d8d51-0ecc-4a3e-aaa5-50a3a8c9ac96",
     "name": "IoT Device Management API",
-    "description": "API collection to test the IoT Device Management application.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "55332638",
-    "_collection_link": "https://go.postman.co/collection/55332638-e32d8d51-0ecc-4a3e-aaa5-50a3a8c9ac96?source=collection_link"
+    "description": "API collection to test the IoT Device Management application with PostgreSQL schemas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
@@ -36,7 +34,7 @@
           "script": {
             "exec": [
               "var jsonData = pm.response.json();",
-              "pm.environment.set(\"DEVICE_ID\", jsonData.id);"
+              "pm.environment.set(\"DEVICE_ID\", jsonData.device_id);"
             ],
             "type": "text/javascript"
           }
@@ -53,7 +51,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"name\": \"Bedroom Sensor\",\n    \"type\": \"TEMP_HUMIDITY\",\n    \"status\": \"ACTIVE\"\n}"
+          "raw": "{\n    \"device_name\": \"Sensor Suhu Ruang Server\",\n    \"device_type\": \"Thermometer\",\n    \"status\": \"ACTIVE\",\n    \"firmware_version\": \"v2.0.0\",\n    \"device_metadata\": {\n        \"floor\": 3,\n        \"room\": \"301\"\n    }\n}"
         },
         "url": {
           "raw": "http://localhost:3000/api/devices",
@@ -104,7 +102,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"name\": \"Bedroom Sensor Updated\",\n    \"type\": \"TEMP\",\n    \"status\": \"INACTIVE\"\n}"
+          "raw": "{\n    \"device_name\": \"Sensor Suhu Ruang Server Updated\",\n    \"device_type\": \"Thermometer\",\n    \"status\": \"ACTIVE\",\n    \"firmware_version\": \"v2.1.0\",\n    \"device_metadata\": {\n        \"floor\": 3,\n        \"room\": \"301\",\n        \"rack\": \"A-12\"\n    }\n}"
         },
         "url": {
           "raw": "http://localhost:3000/api/devices/{{DEVICE_ID}}",
@@ -135,7 +133,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"temperature\": 25.0,\n    \"humidity\": 48.0\n}"
+          "raw": "{\n    \"sensor_values\": {\n        \"temperature\": 24.5,\n        \"humidity\": 60.0\n    }\n}"
         },
         "url": {
           "raw": "http://localhost:3000/api/devices/{{DEVICE_ID}}/telemetry",
@@ -171,6 +169,38 @@
             "devices",
             "{{DEVICE_ID}}",
             "telemetry"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Historical Telemetry",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/devices/{{DEVICE_ID}}/telemetry?start_time=1780894400000&end_time=1780894459999",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "devices",
+            "{{DEVICE_ID}}",
+            "telemetry"
+          ],
+          "query": [
+            {
+              "key": "start_time",
+              "value": "1780894400000"
+            },
+            {
+              "key": "end_time",
+              "value": "1780894459999"
+            }
           ]
         }
       },
