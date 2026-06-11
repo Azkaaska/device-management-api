@@ -6,6 +6,9 @@ venv/
 env/
 .pytest_cache/
 
+# Local environment variables
+.env
+
 # IDEs and OS files
 .idea/
 .vscode/
