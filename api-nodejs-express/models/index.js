@@ -1,13 +1,12 @@
 const sequelize = require('../database');
 const Device = require('./Device');
-const Telemetry = require('./Telemetry');
+const Reading = require('./Reading');
 
-// Define Associations
-Device.hasMany(Telemetry, { foreignKey: 'device_id', onDelete: 'CASCADE' });
-Telemetry.belongsTo(Device, { foreignKey: 'device_id' });
-
+// Define Associations (ORM level, no actual DB constraint required)
+Device.hasMany(Reading, { foreignKey: 'device_id', onDelete: 'CASCADE' });
+Reading.belongsTo(Device, { foreignKey: 'device_id' });
 module.exports = {
     sequelize,
     Device,
-    Telemetry
+    Reading
 };

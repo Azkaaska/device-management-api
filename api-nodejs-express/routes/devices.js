@@ -13,11 +13,17 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        const { name, type, status } = req.body;
-        if (!name) {
-            return res.status(400).json({ error: 'Name is required' });
+        const { device_name, device_type, status, firmware_version, device_metadata } = req.body;
+        if (!device_name) {
+            return res.status(400).json({ error: 'device_name is required' });
         }
-        const device = await Device.create({ name, type, status });
+        const device = await Device.create({
+            device_name,
+            device_type,
+            status,
+            firmware_version,
+            device_metadata
+        });
         res.status(201).json(device);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -39,19 +45,21 @@ router.get('/:id', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
     try {
-        const { name, type, status } = req.body;
-        if (!name) {
-            return res.status(400).json({ error: 'Name is required' });
+        const { device_name, device_type, status, firmware_version, device_metadata } = req.body;
+        if (!device_name) {
+            return res.status(400).json({ error: 'device_name is required' });
         }
         
         const device = await Device.findByPk(req.params.id);
         if (!device) {
             return res.status(404).json({ error: 'Device not found' });
         }
-
-        device.name = name;
-        if (type !== undefined) device.type = type;
+        
+        device.device_name = device_name;
+        device.device_type = device_type;
         if (status !== undefined) device.status = status;
+        device.firmware_version = firmware_version;
+        device.device_metadata = device_metadata;
         
         await device.save();
         res.json(device);
@@ -64,7 +72,8 @@ router.delete('/:id', async (req, res) => {
     try {
         const device = await Device.findByPk(req.params.id);
         if (device) {
-            await device.destroy();
+            device.status = 'INACTIVE';
+            await device.save();
             res.status(204).end();
         } else {
             res.status(404).json({ error: 'Device not found' });

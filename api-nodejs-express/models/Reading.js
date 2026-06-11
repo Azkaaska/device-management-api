@@ -1,9 +1,9 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../database');
 
-const Telemetry = sequelize.define('Telemetry', {
+const Reading = sequelize.define('Reading', {
     id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         primaryKey: true,
         autoIncrement: true
     },
@@ -11,26 +11,24 @@ const Telemetry = sequelize.define('Telemetry', {
         type: DataTypes.UUID,
         allowNull: false
     },
-    temperature: {
-        type: DataTypes.FLOAT
-    },
-    humidity: {
-        type: DataTypes.FLOAT
+    sensor_values: {
+        type: DataTypes.JSONB,
+        allowNull: false
     },
     ts: {
         type: DataTypes.BIGINT,
         allowNull: false
     }
 }, {
-    tableName: 'telemetry',
+    tableName: 'readings',
     timestamps: false,
     hooks: {
-        beforeValidate: (telemetry, options) => {
-            if (!telemetry.ts) {
-                telemetry.ts = Date.now();
+        beforeValidate: (reading, options) => {
+            if (!reading.ts) {
+                reading.ts = Date.now();
             }
         }
     }
 });
 
-module.exports = Telemetry;
+module.exports = Reading;

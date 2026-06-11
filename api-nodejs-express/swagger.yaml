@@ -31,7 +31,7 @@ paths:
       tags:
         - Devices
       summary: Create a new device
-      description: "Registers a new IoT device in the system"
+      description: Registers a new IoT device in the system
       requestBody:
         required: true
         content:
@@ -47,11 +47,10 @@ paths:
                 $ref: '#/components/schemas/Device'
         '400':
           description: Invalid input
-
   /api/devices/{device_id}:
     parameters:
       - in: path
-        name: id
+        name: device_id
         required: true
         schema:
           type: string
@@ -76,7 +75,7 @@ paths:
       tags:
         - Devices
       summary: Update a device
-      descrpition: Updates the attributes of an existing device
+      description: Updates the attributes of an existing device
       requestBody:
         required: true
         content:
@@ -97,18 +96,17 @@ paths:
     delete:
       tags:
         - Devices
-      summary: Delete a device
-      description: Permanently removes a device from the system
+      summary: Delete a device (Soft Delete)
+      description: Soft deletes a device by setting its status to INACTIVE
       responses:
         '204':
-          description: Device deleted successfully
+          description: Device deactivated successfully
         '404':
           description: Device not found
-
   /api/devices/{device_id}/telemetry:
     parameters:
       - in: path
-        name: id
+        name: device_id
         required: true
         schema:
           type: string
@@ -118,15 +116,33 @@ paths:
     get:
       tags:
         - Telemetry
-      summary: Get latest telemetry for a device
-      description: Retrieves the single most recent telemetry record
+      summary: Get telemetry for a device
+      description: Retrieves the single most recent telemetry record, or a list of historical readings if start_time and end_time are provided.
+      parameters:
+        - in: query
+          name: start_time
+          schema:
+            type: integer
+            example: 1780894400000
+          description: Query range start timestamp (ms)
+        - in: query
+          name: end_time
+          schema:
+            type: integer
+            example: 1780894459999
+          description: Query range end timestamp (ms)
       responses:
         '200':
-          description: A JSON object of the latest telemetry record
+          description: Telemetry data (object or array)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Telemetry'
+                oneOf:
+                  - $ref: '#/components/schemas/Reading'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Reading'
+                  - type: object
         '404':
           description: Device not found
     post:
@@ -139,60 +155,87 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TelemetryInput'
+              $ref: '#/components/schemas/ReadingInput'
       responses:
         '201':
           description: Telemetry saved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Telemetry'
+                $ref: '#/components/schemas/Reading'
         '404':
           description: Device not found
-
 components:
   schemas:
     Device:
       type: object
       required:
         - device_id
-        - name
+        - device_name
+        - device_type
+        - status
+        - created_at
+        - updated_at
       properties:
-        id:
+        device_id:
           type: string
           format: uuid
           example: "550e8400-e29b-41d4-a716-446655440000"
-        name:
+        device_name:
           type: string
-          example: "Living Room Sensor"
-        type:
+          example: "Sensor Suhu Ruang Server"
+        device_type:
           type: string
-          example: "TEMP_HUMIDITY"
+          example: "Thermometer"
         status:
           type: string
           example: "ACTIVE"
+        firmware_version:
+          type: string
+          example: "v2.1.0"
+        device_metadata:
+          type: object
+          example:
+            floor: 3
+            room: "301"
         created_at:
           type: integer
-          example: 1717550000000
+          format: int64
+          example: 1780894449946
+        updated_at:
+          type: integer
+          format: int64
+          example: 1780894449946
     DeviceInput:
       type: object
       required:
-        - name
+        - device_name
+        - device_type
       properties:
-        name:
+        device_name:
           type: string
-          example: "Living Room Sensor"
-        type:
+          example: "Sensor Suhu Ruang Server"
+        device_type:
           type: string
-          example: "TEMP_HUMIDITY"
+          example: "Thermometer"
         status:
           type: string
           example: "ACTIVE"
-    Telemetry:
+        firmware_version:
+          type: string
+          example: "v2.1.0"
+        device_metadata:
+          type: object
+          example:
+            floor: 3
+            room: "301"
+    Reading:
       type: object
       required:
         - id
         - device_id
+        - ts
+        - sensor_values
       properties:
         id:
           type: integer
@@ -201,25 +244,22 @@ components:
           type: string
           format: uuid
           example: "550e8400-e29b-41d4-a716-446655440000"
-        temperature:
-          type: number
-          format: float
-          example: 22.5
-        humidity:
-          type: number
-          format: float
-          example: 45.0
         ts:
           type: integer
-          example: 1717550000000
-    TelemetryInput:
+          format: int64
+          example: 1780894449950
+        sensor_values:
+          type: object
+          example:
+            temperature: 24.5
+            humidity: 60
+    ReadingInput:
       type: object
+      required:
+        - sensor_values
       properties:
-        temperature:
-          type: number
-          format: float
-          example: 22.5
-        humidity:
-          type: number
-          format: float
-          example: 45.0
+        sensor_values:
+          type: object
+          example:
+            temperature: 24.5
+            humidity: 60
