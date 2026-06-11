@@ -5,6 +5,7 @@ target/
 .settings/
 .classpath
 .project
+.env
 
 # IDEs and OS files
 .idea/

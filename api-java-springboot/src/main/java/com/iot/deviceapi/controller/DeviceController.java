@@ -31,17 +31,19 @@ public class DeviceController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new device", description = "Registers a new IoT device in the system")
     public Device createDevice(@RequestBody DeviceInput input) {
-        if (input.getName() == null || input.getName().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
+        if (input.getDeviceName() == null || input.getDeviceName().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "device_name is required");
         }
         Device device = new Device();
-        device.setName(input.getName());
-        device.setType(input.getType());
+        device.setDeviceName(input.getDeviceName());
+        device.setDeviceType(input.getDeviceType());
         if (input.getStatus() == null) {
             device.setStatus("ACTIVE");
         } else {
             device.setStatus(input.getStatus());
         }
+        device.setFirmwareVersion(input.getFirmwareVersion());
+        device.setDeviceMetadata(input.getDeviceMetadata());
         return deviceRepository.save(device);
     }
 
@@ -55,25 +57,28 @@ public class DeviceController {
     @PutMapping("/{id}")
     @Operation(summary = "Update a device", description = "Updates the attributes of an existing device")
     public Device updateDevice(@PathVariable UUID id, @RequestBody DeviceInput input) {
-        if (input.getName() == null || input.getName().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
+        if (input.getDeviceName() == null || input.getDeviceName().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "device_name is required");
         }
         Device device = deviceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found"));
-
-        device.setName(input.getName());
-        if (input.getType() != null) device.setType(input.getType());
-        if (input.getStatus() != null) device.setStatus(input.getStatus());
-
+        device.setDeviceName(input.getDeviceName());
+        device.setDeviceType(input.getDeviceType());
+        if (input.getStatus() != null) {
+            device.setStatus(input.getStatus());
+        }
+        device.setFirmwareVersion(input.getFirmwareVersion());
+        device.setDeviceMetadata(input.getDeviceMetadata());
         return deviceRepository.save(device);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete a device", description = "Permanently removes a device from the system")
+    @Operation(summary = "Delete a device (Soft Delete)", description = "Soft deletes a device by setting its status to INACTIVE")
     public void deleteDevice(@PathVariable UUID id) {
         Device device = deviceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found"));
-        deviceRepository.delete(device);
+        device.setStatus("INACTIVE");
+        deviceRepository.save(device);
     }
 }

@@ -1,10 +1,10 @@
 package com.iot.deviceapi.controller;
 
 import com.iot.deviceapi.model.Device;
-import com.iot.deviceapi.model.Telemetry;
-import com.iot.deviceapi.model.TelemetryInput;
+import com.iot.deviceapi.model.Reading;
+import com.iot.deviceapi.model.ReadingInput;
 import com.iot.deviceapi.repository.DeviceRepository;
-import com.iot.deviceapi.repository.TelemetryRepository;
+import com.iot.deviceapi.repository.ReadingRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,33 +24,37 @@ public class TelemetryController {
     private DeviceRepository deviceRepository;
 
     @Autowired
-    private TelemetryRepository telemetryRepository;
+    private ReadingRepository readingRepository;
 
     @GetMapping("/{id}/telemetry")
-    @Operation(summary = "Get latest telemetry for a device", description = "Retrieves the single most recent telemetry record")
-    public Object getLatestTelemetry(@PathVariable UUID id) {
+    @Operation(summary = "Get telemetry for a device", description = "Retrieves the single most recent telemetry record, or a list of historical readings if start_time and end_time are provided.")
+    public Object getTelemetry(
+            @PathVariable UUID id,
+            @RequestParam(name = "start_time", required = false) Long startTime,
+            @RequestParam(name = "end_time", required = false) Long endTime) {
         Device device = deviceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found"));
-
-        return telemetryRepository.findFirstByDeviceIdOrderByTsDesc(device.getId())
-                .map(t -> (Object) t)
-                .orElseGet(HashMap::new);
+        if (startTime != null && endTime != null) {
+            return readingRepository.findAllByDeviceIdAndTsBetweenOrderByTsDesc(device.getDeviceId(), startTime, endTime);
+        } else {
+            return readingRepository.findFirstByDeviceIdOrderByTsDesc(device.getDeviceId())
+                    .map(t -> (Object) t)
+                    .orElseGet(HashMap::new);
+        }
     }
     
     @PostMapping("/{id}/telemetry")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Push telemetry to a device", description = "Records a new telemetry data point for a specific device")
-    public Telemetry pushTelemetry(@PathVariable UUID id, @RequestBody TelemetryInput input) {
+    public Reading pushTelemetry(@PathVariable UUID id, @RequestBody ReadingInput input) {
         Device device = deviceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found"));
-
-        Telemetry telemetry = new Telemetry();
-        telemetry.setDevice(device);
-        telemetry.setTemperature(input.getTemperature());
-        telemetry.setHumidity(input.getHumidity());
-        if (telemetry.getTs() == null) {
-            telemetry.setTs(System.currentTimeMillis());
+        Reading reading = new Reading();
+        reading.setDeviceId(device.getDeviceId());
+        reading.setSensorValues(input.getSensorValues());
+        if (reading.getTs() == null) {
+            reading.setTs(System.currentTimeMillis());
         }
-        return telemetryRepository.save(telemetry);
+        return readingRepository.save(reading);
     }
 }
