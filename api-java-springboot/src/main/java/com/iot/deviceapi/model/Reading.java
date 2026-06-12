@@ -1,74 +1,96 @@
 package com.iot.deviceapi.model;
 
-import jakarta.persistence.*;
-import java.util.UUID;
-import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.v3.oas.annotations.media.Schema;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.cassandra.core.mapping.Column;
+import org.springframework.data.cassandra.core.mapping.PrimaryKey;
+import org.springframework.data.cassandra.core.mapping.Table;
 
-@Entity
-@Table(name = "readings")
-@Schema(description = "Device time-series telemetry data")
+import java.util.Map;
+import java.util.UUID;
+
+@Table("readings")
 public class Reading {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "1")
-    private Long id;
+    @PrimaryKey
+    @JsonIgnore
+    private ReadingKey key;
 
-    @Column(name = "device_id", nullable = false)
+    @Column("sensor_values")
+    private String sensorValuesStr;
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    public Reading() {
+        this.key = new ReadingKey();
+    }
+
+    public Reading(ReadingKey key, String sensorValuesStr) {
+        this.key = key;
+        this.sensorValuesStr = sensorValuesStr;
+    }
+
+    public ReadingKey getKey() {
+        return key;
+    }
+
+    public void setKey(ReadingKey key) {
+        this.key = key;
+    }
+
     @JsonProperty("device_id")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "550e8400-e29b-41d4-a716-446655440000")
-    private UUID deviceId;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "sensor_values", columnDefinition = "jsonb", nullable = false)
-    @JsonProperty("sensor_values")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "{\"temperature\": 24.5, \"humidity\": 60}")
-    private Map<String, Object> sensorValues;
-
-    @Column(nullable = false)
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "1780894449950")
-    private Long ts;
-
-    @PrePersist
-    protected void onCreate() {
-        if (this.ts == null) {
-            this.ts = System.currentTimeMillis();
-        }
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public UUID getDeviceId() {
-        return deviceId;
+        return key != null ? key.getDeviceId() : null;
     }
 
     public void setDeviceId(UUID deviceId) {
-        this.deviceId = deviceId;
+        if (this.key == null) {
+            this.key = new ReadingKey();
+        }
+        this.key.setDeviceId(deviceId);
     }
 
-    public Map<String, Object> getSensorValues() {
-        return sensorValues;
+    @JsonProperty("bucket_date")
+    public String getBucketDate() {
+        return key != null ? key.getBucketDate() : null;
     }
 
-    public void setSensorValues(Map<String, Object> sensorValues) {
-        this.sensorValues = sensorValues;
+    public void setBucketDate(String bucketDate) {
+        if (this.key == null) {
+            this.key = new ReadingKey();
+        }
+        this.key.setBucketDate(bucketDate);
     }
 
+    @JsonProperty("ts")
     public Long getTs() {
-        return ts;
+        return key != null ? key.getTs() : null;
     }
 
     public void setTs(Long ts) {
-        this.ts = ts;
+        if (this.key == null) {
+            this.key = new ReadingKey();
+        }
+        this.key.setTs(ts);
+    }
+
+    @JsonProperty("sensor_values")
+    public Map<String, Object> getSensorValues() {
+        try {
+            if (sensorValuesStr == null) return null;
+            return objectMapper.readValue(sensorValuesStr, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public void setSensorValues(Map<String, Object> sensorValues) {
+        try {
+            this.sensorValuesStr = objectMapper.writeValueAsString(sensorValues);
+        } catch (Exception e) {
+            this.sensorValuesStr = "{}";
+        }
     }
 }
