@@ -38,7 +38,13 @@ const Device = sequelize.define('Device', {
     }
 }, {
     tableName: 'devices',
-    timestamps: false, 
+    timestamps: false,
+    indexes: [
+        // Filter/group by device type
+        { name: 'idx_devices_type', fields: ['device_type'] },
+        // Composite: combined status + type filter
+        { name: 'idx_devices_status_type', fields: ['status', 'device_type'] }
+    ],
     hooks: {
         beforeValidate: (device, options) => {
             const now = Date.now();

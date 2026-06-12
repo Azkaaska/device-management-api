@@ -9,7 +9,13 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "devices")
+@Table(
+    name = "devices",
+    indexes = {
+        @Index(name = "idx_devices_type",        columnList = "device_type"),
+        @Index(name = "idx_devices_status_type", columnList = "status, device_type")
+    }
+)
 @Schema(description = "IoT Device metadata")
 public class Device {
 
