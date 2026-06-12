@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Device } = require('../models');
-const sequelize = require('../database');
+const sequelize = require('../database/postgres');
 const { ValidationError, UniqueConstraintError } = require('sequelize');
 
 router.get('/', async (req, res) => {

@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../database');
+const sequelize = require('../database/postgres');
 
 const Device = sequelize.define('Device', {
     device_id: {

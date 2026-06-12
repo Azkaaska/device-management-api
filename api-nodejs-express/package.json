@@ -9,10 +9,11 @@
     "dev": "node --watch index.js"
   },
   "dependencies": {
+    "cassandra-driver": "^4.7.2",
     "express": "^4.21.0",
     "pg": "^8.21.0",
     "sequelize": "^6.37.8",
-    "sqlite3": "^5.1.7",
+    "sqlite3": "^6.0.1",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0"
   }
