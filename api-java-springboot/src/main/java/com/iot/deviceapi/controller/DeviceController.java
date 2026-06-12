@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -22,13 +23,15 @@ public class DeviceController {
     private DeviceRepository deviceRepository;
 
     @GetMapping
+    @Transactional(readOnly = true)
     @Operation(summary = "Retrieve a list of devices", description = "Returns an array of all registered devices")
     public List<Device> getAllDevices() {
         return deviceRepository.findAll();
     }
-    
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     @Operation(summary = "Create a new device", description = "Registers a new IoT device in the system")
     public Device createDevice(@RequestBody DeviceInput input) {
         if (input.getDeviceName() == null || input.getDeviceName().isEmpty()) {
@@ -37,17 +40,14 @@ public class DeviceController {
         Device device = new Device();
         device.setDeviceName(input.getDeviceName());
         device.setDeviceType(input.getDeviceType());
-        if (input.getStatus() == null) {
-            device.setStatus("ACTIVE");
-        } else {
-            device.setStatus(input.getStatus());
-        }
+        device.setStatus(input.getStatus() != null ? input.getStatus() : "ACTIVE");
         device.setFirmwareVersion(input.getFirmwareVersion());
         device.setDeviceMetadata(input.getDeviceMetadata());
         return deviceRepository.save(device);
     }
 
     @GetMapping("/{id}")
+    @Transactional(readOnly = true)
     @Operation(summary = "Get a device by ID", description = "Returns detailed information about a specific device")
     public Device getDevice(@PathVariable UUID id) {
         return deviceRepository.findById(id)
@@ -55,6 +55,7 @@ public class DeviceController {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     @Operation(summary = "Update a device", description = "Updates the attributes of an existing device")
     public Device updateDevice(@PathVariable UUID id, @RequestBody DeviceInput input) {
         if (input.getDeviceName() == null || input.getDeviceName().isEmpty()) {
@@ -74,6 +75,7 @@ public class DeviceController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
     @Operation(summary = "Delete a device (Soft Delete)", description = "Soft deletes a device by setting its status to INACTIVE")
     public void deleteDevice(@PathVariable UUID id) {
         Device device = deviceRepository.findById(id)

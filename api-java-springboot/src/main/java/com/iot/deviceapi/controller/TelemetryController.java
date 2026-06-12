@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -27,6 +28,7 @@ public class TelemetryController {
     private ReadingRepository readingRepository;
 
     @GetMapping("/{id}/telemetry")
+    @Transactional(readOnly = true)
     @Operation(summary = "Get telemetry for a device", description = "Retrieves the single most recent telemetry record, or a list of historical readings if start_time and end_time are provided.")
     public Object getTelemetry(
             @PathVariable UUID id,
@@ -42,9 +44,10 @@ public class TelemetryController {
                     .orElseGet(HashMap::new);
         }
     }
-    
+
     @PostMapping("/{id}/telemetry")
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     @Operation(summary = "Push telemetry to a device", description = "Records a new telemetry data point for a specific device")
     public Reading pushTelemetry(@PathVariable UUID id, @RequestBody ReadingInput input) {
         Device device = deviceRepository.findById(id)
