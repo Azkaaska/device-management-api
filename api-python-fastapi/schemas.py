@@ -29,8 +29,8 @@ class DeviceInput(BaseModel):
 
 # Reading Schemas
 class Reading(BaseModel):
-    id: int = Field(example=1)
     device_id: UUID = Field(example="550e8400-e29b-41d4-a716-446655440000")
+    bucket_date: str = Field(example="2026-06-12")
     ts: int = Field(default_factory=get_current_unix_ms, example=1780894449950)
     sensor_values: dict = Field(example={"temperature": 24.5, "humidity": 60})
 

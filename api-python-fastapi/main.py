@@ -1,10 +1,13 @@
 from fastapi import FastAPI
-import models
-from database import engine
+from database.postgres import engine, Base
+from database.cassandra import get_cassandra_session
+from models.device import Device
 from routers import devices, telemetry
 
-# Create database tables (in-memory SQLite)
-models.Base.metadata.create_all(bind=engine)
+# Create database tables (PostgreSQL)
+Base.metadata.create_all(bind=engine)
+# Initialize Cassandra Session
+get_cassandra_session()
 
 servers_metadata = [
     {

@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 import time
 import uuid
 
-from database import Base
+from database.postgres import Base
 
 def get_current_unix_ms():
     return time.time_ns() // 1000000
@@ -21,16 +21,6 @@ class Device(Base):
     updated_at = Column(BigInteger, default=get_current_unix_ms, onupdate=get_current_unix_ms)
 
     __table_args__ = (
-        # Filter/group by device type
         Index("idx_devices_type", "device_type"),
-        # Composite: combined status + type filter
         Index("idx_devices_status_type", "status", "device_type"),
     )
-
-class Reading(Base):
-    __tablename__ = "readings"
-
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    device_id = Column(UUID(as_uuid=True), nullable=False)
-    ts = Column(BigInteger, default=get_current_unix_ms)
-    sensor_values = Column(JSONB, nullable=False)
