@@ -27,17 +27,32 @@ def start_mqtt_subscriber():
         print(f"MQTT Ingestion: Connected to broker {host}:{port}")
         # topic: {place1}/{place2}/{deviceId}
         client.subscribe("+/+/+")
-        
+
     def on_message(client, userdata, msg):
         try:
             parts = msg.topic.split('/')
-            # expect exactly: place1 / place2 / deviceId
             if len(parts) != 3:
+                print(f"MQTT Ingestion: Invalid topic structure ({msg.topic})")
                 return
-            device_id = UUID(parts[2])
-            payload = json.loads(msg.payload.decode('utf-8'))
+            
+            try:
+                device_id = UUID(parts[2])
+            except ValueError:
+                print(f"MQTT Ingestion: Invalid UUID format in topic token '{parts[2]}'")
+                return
+
+            try:
+                payload = json.loads(msg.payload.decode('utf-8'))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                print(f"MQTT Ingestion: Corrupted/Non-JSON payload received on {msg.topic}")
+                return
+            
             ts = payload.get("ts")
-            sensor_values = payload.get("sensor_values", {})
+            sensor_values = payload.get("sensor_values")
+            
+            if ts is None or sensor_values is None:
+                print(f"MQTT Ingestion: Missing 'ts' or 'sensor_values' in payload")
+                return
             
             db = SessionLocal()
             try:

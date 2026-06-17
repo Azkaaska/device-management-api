@@ -77,7 +77,14 @@ def run_device_emulator(device):
 
             payload = {"ts": ts, "sensor_values": sensor_values}
 
-            client.publish(device["topic"], json.dumps(payload), qos=1)
+            try:
+                serialized_payload = json.dumps(payload)
+            except Exception as parse_err:
+                print(f"[{device['deviceType']}] Serialization failed: {parse_err}")
+                time.sleep(2)
+                continue
+
+            client.publish(device["topic"], serialized_payload, qos=1)
             print(f"[{device['deviceType']}] → {device['topic']} | {payload}")
             time.sleep(2)
 
