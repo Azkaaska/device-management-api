@@ -31,23 +31,41 @@ DEVICES = [
     }
 ]
 
-
 def run_device_emulator(device):
     client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2)
-    try:
-        client.connect(MQTT_HOST, MQTT_PORT, 60)
-        client.loop_start()
-        print(f"[{device['deviceType']}] Connected to MQTT Broker ({MQTT_HOST}:{MQTT_PORT})")
-    except Exception as e:
-        print(f"[{device['deviceType']}] MQTT Connection Failed: {e}")
-        return
+    connection_state = {"is_connected": False}
+
+    def on_connect(client, userdata, flags, rc, properties=None):
+        if rc == 0:
+            print(f"[{device['deviceType']}] Connected to MQTT Broker.")
+            connection_state["is_connected"] = True
+        else:
+            print(f"[{device['deviceType']}] Connection failed with code {rc}")
+            connection_state["is_connected"] = False
+
+    def on_disconnect(client, userdata, flags, rc, properties=None):
+        print(f"[{device['deviceType']}] Disconnected from MQTT Broker.")
+        connection_state["is_connected"] = False
+
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
+    
+    connected = False
+    while not connected:
+        try:
+            client.connect(MQTT_HOST, MQTT_PORT, 60)
+            client.loop_start()
+            connected = True
+        except Exception as e:
+            print(f"[{device['deviceType']}] Broker unreachable: {e}. Retrying in 5s...")
+            time.sleep(5)
 
     energy_accumulated = random.uniform(10.0, 50.0)
     water_volume_accumulated = random.uniform(100.0, 500.0)
 
     while True:
         try:
-            ts = int(time.time_ns() // 1_000_000)  # Unix ms timestamp
+            ts = int(time.time_ns() // 1_000_000)
 
             if device["deviceType"] == "thermometer":
                 sensor_values = {
@@ -89,12 +107,8 @@ def run_device_emulator(device):
             time.sleep(2)
 
         except Exception as e:
-            print(f"[{device['deviceType']}] Emulator error: {e}")
-            break
-
-    client.loop_stop()
-    client.disconnect()
-
+            print(f"[{device['deviceType']}] Emulator loop error: {e}")
+            time.sleep(2)
 
 if __name__ == "__main__":
     print("Starting Standalone Multi-Device MQTT Emulator...")

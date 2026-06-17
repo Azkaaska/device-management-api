@@ -1,6 +1,6 @@
-from fastapi import FastAPI
-from database.postgres import engine, Base
 from database.cassandra import get_cassandra_session
+from database.postgres import engine, Base
+from fastapi import FastAPI
 from models.device import Device
 from routers import devices, telemetry
 
@@ -9,14 +9,15 @@ Base.metadata.create_all(bind=engine)
 # Initialize Cassandra Session
 get_cassandra_session()
 
-import os
 import json
+import os
 import threading
-from uuid import UUID
+import time
 import paho.mqtt.client as mqtt
-from paho.mqtt.enums import CallbackAPIVersion
 from database.postgres import SessionLocal
 from models.reading import Reading
+from paho.mqtt.enums import CallbackAPIVersion
+from uuid import UUID
 
 def start_mqtt_subscriber():
     host = os.getenv("MQTT_HOST", "127.0.0.1")
@@ -24,9 +25,11 @@ def start_mqtt_subscriber():
     client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2)
     
     def on_connect(client, userdata, flags, rc, properties=None):
-        print(f"MQTT Ingestion: Connected to broker {host}:{port}")
-        # topic: {place1}/{place2}/{deviceId}
-        client.subscribe("+/+/+")
+        if rc == 0:
+            print(f"MQTT Ingestion: Connected to broker {host}:{port}")
+            client.subscribe("+/+/+")
+        else:
+            print(f"MQTT Ingestion: Connection failed with code {rc}")
 
     def on_message(client, userdata, msg):
         try:
@@ -71,11 +74,13 @@ def start_mqtt_subscriber():
     client.on_connect = on_connect
     client.on_message = on_message
     
-    try:
-        client.connect(host, port, 60)
-        client.loop_forever()
-    except Exception as e:
-        print(f"MQTT Ingestion Client Error: {e}")
+    while True:
+        try:
+            client.connect(host, port, 60)
+            client.loop_forever()
+        except Exception as e:
+            print(f"MQTT Ingestion Client Error: {e}. Reconnecting in 5 seconds...")
+            time.sleep(5)
 
 threading.Thread(target=start_mqtt_subscriber, daemon=True).start()
 
