@@ -9,6 +9,61 @@ Base.metadata.create_all(bind=engine)
 # Initialize Cassandra Session
 get_cassandra_session()
 
+import os
+import json
+import threading
+from uuid import UUID
+import paho.mqtt.client as mqtt
+from paho.mqtt.enums import CallbackAPIVersion
+from database.postgres import SessionLocal
+from models.reading import Reading
+
+def start_mqtt_subscriber():
+    host = os.getenv("MQTT_HOST", "127.0.0.1")
+    port = int(os.getenv("MQTT_PORT", 1883))
+    client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2)
+    
+    def on_connect(client, userdata, flags, rc, properties=None):
+        print(f"MQTT Ingestion: Connected to broker {host}:{port}")
+        # topic: {place1}/{place2}/{deviceId}
+        client.subscribe("+/+/+")
+        
+    def on_message(client, userdata, msg):
+        try:
+            parts = msg.topic.split('/')
+            # expect exactly: place1 / place2 / deviceId
+            if len(parts) != 3:
+                return
+            device_id = UUID(parts[2])
+            payload = json.loads(msg.payload.decode('utf-8'))
+            ts = payload.get("ts")
+            sensor_values = payload.get("sensor_values", {})
+            
+            db = SessionLocal()
+            try:
+                device = db.query(Device).filter(Device.device_id == device_id).first()
+                if not device:
+                    print(f"MQTT Ingestion: Unknown device {device_id}, skipping")
+                    return
+                
+                Reading.save(device_id, sensor_values, ts)
+                print(f"MQTT Ingestion: Saved telemetry for device {device_id}")
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"MQTT Ingestion Error: {e}")
+            
+    client.on_connect = on_connect
+    client.on_message = on_message
+    
+    try:
+        client.connect(host, port, 60)
+        client.loop_forever()
+    except Exception as e:
+        print(f"MQTT Ingestion Client Error: {e}")
+
+threading.Thread(target=start_mqtt_subscriber, daemon=True).start()
+
 servers_metadata = [
     {
         "url": "http://localhost:3000", 
