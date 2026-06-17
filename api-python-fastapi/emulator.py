@@ -12,7 +12,6 @@ load_dotenv()
 MQTT_HOST = os.getenv("MQTT_HOST", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 
-# Each device holds its own topic (place hierarchy) and type for sensor generation
 DEVICES = [
     {
         "deviceId": "550e8400-e29b-41d4-a716-446655440001",
@@ -34,6 +33,7 @@ DEVICES = [
 def run_device_emulator(device):
     client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2)
     connection_state = {"is_connected": False}
+    offline_buffer = []
 
     def on_connect(client, userdata, flags, rc, properties=None):
         if rc == 0:
@@ -49,7 +49,7 @@ def run_device_emulator(device):
 
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
-    
+
     connected = False
     while not connected:
         try:
@@ -102,8 +102,20 @@ def run_device_emulator(device):
                 time.sleep(2)
                 continue
 
-            client.publish(device["topic"], serialized_payload, qos=1)
-            print(f"[{device['deviceType']}] → {device['topic']} | {payload}")
+            if connection_state["is_connected"]:
+                while offline_buffer:
+                    buffered_msg = offline_buffer.pop(0)
+                    print(f"[{device['deviceType']}] [Flushing Buffer] → {device['topic']}")
+                    client.publish(device["topic"], buffered_msg, qos=1)
+                
+                client.publish(device["topic"], serialized_payload, qos=1)
+                print(f"[{device['deviceType']}] → {device['topic']} | {payload}")
+            else:
+                print(f"[{device['deviceType']}] Connection lost. Buffering data telemetry...")
+                offline_buffer.append(serialized_payload)
+                if len(offline_buffer) > 5000:
+                    offline_buffer.pop(0)
+
             time.sleep(2)
 
         except Exception as e:
