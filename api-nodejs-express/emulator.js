@@ -22,6 +22,7 @@ const devices = [
 ];
 
 let isConnected = false;
+const offlineBuffer = [];
 
 const mqttOptions = {
     reconnectPeriod: 5000,
@@ -34,6 +35,16 @@ const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`, mqttOptions);
 client.on('connect', () => {
     console.log(`Emulator status: CONNECTED to MQTT Broker (mqtt://${mqttHost}:${mqttPort})`);
     isConnected = true;
+
+	if (offlineBuffer.length > 0) {
+        console.log(`[Reconnection Logic] Recovered connection. Flushing ${offlineBuffer.length} pending items out of queue...`);
+        
+        while (offlineBuffer.length > 0) {
+            const bufferedData = offlineBuffer.shift();
+            client.publish(bufferedData.topic, bufferedData.message, { qos: 1 });
+        }
+        console.log('[Reconnection Logic] Buffer queue cleared successfully!');
+    }
 });
 
 client.on('offline', () => {
@@ -83,7 +94,16 @@ setInterval(() => {
 			continue;
 		}
 
-		client.publish(device.topic, JSON.stringify(payload), { qos: 1 });
-		console.log(`[${device.deviceType}] → ${device.topic} | ${JSON.stringify(payload)}`);
+		if (isConnected) {
+            client.publish(device.topic, serializedPayload, { qos: 1 });
+            console.log(`[ONLINE] [${device.deviceType}] → ${device.topic} | ${serializedPayload}`);
+        } else {
+            console.log(`[OFFLINE BUFFERING] Preserving packet for: ${device.topic}`);
+            offlineBuffer.push({ topic: device.topic, message: serializedPayload });
+            
+            if (offlineBuffer.length > 5000) {
+                offlineBuffer.shift();
+            }
+        }
 	}
 }, 2000);
