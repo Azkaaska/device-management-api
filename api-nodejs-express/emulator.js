@@ -54,6 +54,15 @@ client.on('connect', () => {
       		}
 
       		const payload = { ts, sensor_values: sensorValues };
+
+			let serializedPayload;
+			try {
+				serializedPayload = JSON.stringify(payload);
+			} catch (err) {
+				console.error(`Serialization Error for device ${device.deviceId}:`, err.message);
+				continue;
+			}
+
       		client.publish(device.topic, JSON.stringify(payload), { qos: 1 });
       		console.log(`[${device.deviceType}] → ${device.topic} | ${JSON.stringify(payload)}`);
     	}

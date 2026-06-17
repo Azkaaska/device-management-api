@@ -37,23 +37,38 @@ sequelize.sync().then(() => {
     client.on('message', async (topic, message) => {
         try {
             const parts = topic.split('/');
-            // expect: place1 / place2 / deviceId
-            if (parts.length !== 3) return;
+            if (parts.length !== 3) {
+                console.warn(`[Parsing Drop] Invalid topic hierarchy received: ${topic}`);
+                return;
+            }
+            
             const deviceId = parts[2];
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(deviceId)) {
+                console.warn(`[Parsing Drop] Invalid UUID string token found: ${deviceId}`);
+                return;
+            }
+
             const payload = JSON.parse(message.toString());
             const ts = payload.ts;
-            const sensorValues = payload.sensor_values || {};
+            const sensorValues = payload.sensor_values;
+
+            if (!ts || !sensorValues) {
+                console.warn(`[Parsing Drop] Missing 'ts' or 'sensor_values' field in payload.`);
+                return;
+            }
 
             const device = await Device.findByPk(deviceId);
             if (!device) {
-                console.log(`MQTT Ingestion: Unknown device ${deviceId}, skipping`);
+                console.log(`MQTT Ingestion: Unknown device registered inside database ${deviceId}, skipping save`);
                 return;
             }
 
             await Reading.save(deviceId, sensorValues, ts);
-            console.log(`MQTT Ingestion: Saved reading for device ${deviceId}`);
+            console.log(`MQTT Ingestion: Successfully saved telemetry for device ${deviceId}`);
+
         } catch (err) {
-            console.error('MQTT Ingestion processing error:', err.message);
+            console.error('[MQTT Ingestion Engine] Stream processing error:', err.message);
         }
     });
 
