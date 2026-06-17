@@ -21,17 +21,30 @@ app.use('/api/devices', telemetryRouter);
 sequelize.sync().then(() => {
     console.log('Database synced');
     
-    // Start MQTT subscriber
     const mqtt = require('mqtt');
     const { Device, Reading } = require('./models');
     const mqttHost = process.env.MQTT_HOST || '127.0.0.1';
     const mqttPort = process.env.MQTT_PORT || '1883';
-    const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`);
+
+    const mqttOptions = {
+        reconnectPeriod: 5000, // Wait 5 seconds before retrying connection
+        connectTimeout: 30 * 1000, // 30 seconds connection timeout
+    };
+
+    console.log(`MQTT Ingestion: Connecting to broker at mqtt://${mqttHost}:${mqttPort}...`);
+    const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`, mqttOptions);
 
     client.on('connect', () => {
         console.log(`MQTT Ingestion: Connected to broker (mqtt://${mqttHost}:${mqttPort})`);
-        // topic: {place1}/{place2}/{deviceId}
         client.subscribe('+/+/+');
+    });
+
+    client.on('offline', () => {
+        console.warn('MQTT Ingestion: Broker connection lost. Entering OFFLINE state.');
+    });
+
+    client.on('error', (err) => {
+        console.error('MQTT Ingestion: Connection Error event:', err.message);
     });
 
     client.on('message', async (topic, message) => {

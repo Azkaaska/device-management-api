@@ -3,9 +3,6 @@ const mqtt = require('mqtt');
 const mqttHost = process.env.MQTT_HOST || '127.0.0.1';
 const mqttPort = process.env.MQTT_PORT || '1883';
 
-const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`);
-
-// Each device carries its own topic (place hierarchy) and type
 const devices = [
   	{
   	  	deviceId: '550e8400-e29b-41d4-a716-446655440001',
@@ -24,51 +21,69 @@ const devices = [
   	}
 ];
 
+let isConnected = false;
+
+const mqttOptions = {
+    reconnectPeriod: 5000,
+    connectTimeout: 30000
+};
+
+console.log(`Starting Emulator Stream... Connecting to mqtt://${mqttHost}:${mqttPort}`);
+const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`, mqttOptions);
+
 client.on('connect', () => {
-  	console.log(`Connected to MQTT Broker (mqtt://${mqttHost}:${mqttPort})`);
+    console.log(`Emulator status: CONNECTED to MQTT Broker (mqtt://${mqttHost}:${mqttPort})`);
+    isConnected = true;
+});
 
-  	let energyAccumulated = Math.random() * 40.0;
-  	let waterVolumeAccumulated = Math.random() * 400.0;
-
-  	setInterval(() => {
-    	const ts = Date.now();
-
-    	for (const device of devices) {
-      		let sensorValues = {};
-
-      		if (device.deviceType === 'thermometer') {
-      		  		sensorValues = {
-      		    	temperature: parseFloat((Math.random() * 15 + 20).toFixed(2)),
-      		    	humidity: parseFloat((Math.random() * 40 + 40).toFixed(2))
-      		  	};
-      		} else if (device.deviceType === 'energymeter') {
-      		  	const voltage = parseFloat((Math.random() * 20 + 220).toFixed(1));
-      		  	const current = parseFloat((Math.random() * 7.5 + 0.5).toFixed(2));
-      		  	const active_power = parseFloat(((voltage * current * 0.9) / 1000).toFixed(3));
-      		  	energyAccumulated += active_power * (2 / 3600);
-      		  	sensorValues = { voltage, current, active_power, total_energy: parseFloat(energyAccumulated.toFixed(4)) };
-      		} else if (device.deviceType === 'waterflow') {
-      		  	const flow_rate = parseFloat((Math.random() * 20 + 5).toFixed(2));
-      		  	waterVolumeAccumulated += flow_rate * (2 / 60);
-      		  	sensorValues = { flow_rate, total_volume: parseFloat(waterVolumeAccumulated.toFixed(2)) };
-      		}
-
-      		const payload = { ts, sensor_values: sensorValues };
-
-			let serializedPayload;
-			try {
-				serializedPayload = JSON.stringify(payload);
-			} catch (err) {
-				console.error(`Serialization Error for device ${device.deviceId}:`, err.message);
-				continue;
-			}
-
-      		client.publish(device.topic, JSON.stringify(payload), { qos: 1 });
-      		console.log(`[${device.deviceType}] → ${device.topic} | ${JSON.stringify(payload)}`);
-    	}
-	}, 2000);
+client.on('offline', () => {
+    if (isConnected) {
+        console.warn('Emulator status: DISCONNECTED from Broker. Switching telemetry pipelines to Buffering state.');
+        isConnected = false;
+    }
 });
 
 client.on('error', (err) => {
-	console.error('MQTT Client Error:', err);
+    console.error('Emulator Client Connection Exception:', err.message);
 });
+
+let energyAccumulated = Math.random() * 40.0;
+let waterVolumeAccumulated = Math.random() * 400.0;
+
+setInterval(() => {
+	const ts = Date.now();
+
+	for (const device of devices) {
+		let sensorValues = {};
+
+		if (device.deviceType === 'thermometer') {
+				sensorValues = {
+				temperature: parseFloat((Math.random() * 15 + 20).toFixed(2)),
+				humidity: parseFloat((Math.random() * 40 + 40).toFixed(2))
+			};
+		} else if (device.deviceType === 'energymeter') {
+			const voltage = parseFloat((Math.random() * 20 + 220).toFixed(1));
+			const current = parseFloat((Math.random() * 7.5 + 0.5).toFixed(2));
+			const active_power = parseFloat(((voltage * current * 0.9) / 1000).toFixed(3));
+			energyAccumulated += active_power * (2 / 3600);
+			sensorValues = { voltage, current, active_power, total_energy: parseFloat(energyAccumulated.toFixed(4)) };
+		} else if (device.deviceType === 'waterflow') {
+			const flow_rate = parseFloat((Math.random() * 20 + 5).toFixed(2));
+			waterVolumeAccumulated += flow_rate * (2 / 60);
+			sensorValues = { flow_rate, total_volume: parseFloat(waterVolumeAccumulated.toFixed(2)) };
+		}
+
+		const payload = { ts, sensor_values: sensorValues };
+
+		let serializedPayload;
+		try {
+			serializedPayload = JSON.stringify(payload);
+		} catch (err) {
+			console.error(`Serialization Error for device ${device.deviceId}:`, err.message);
+			continue;
+		}
+
+		client.publish(device.topic, JSON.stringify(payload), { qos: 1 });
+		console.log(`[${device.deviceType}] → ${device.topic} | ${JSON.stringify(payload)}`);
+	}
+}, 2000);
