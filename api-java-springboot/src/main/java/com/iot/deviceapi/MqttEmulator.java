@@ -7,12 +7,16 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class MqttEmulator {
 
     private static final String MQTT_HOST = System.getenv().getOrDefault("MQTT_HOST", "127.0.0.1");
     private static final int MQTT_PORT = Integer.parseInt(System.getenv().getOrDefault("MQTT_PORT", "1883"));
     private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static final Queue<BufferedPacket> offlineBuffer = new ConcurrentLinkedQueue<>();
+    private static final int MAX_BUFFER_SIZE = 5000;
 
     private static final List<Map<String, String>> DEVICES = Arrays.asList(
         createDevice("550e8400-e29b-41d4-a716-446655440001", "thermometer",
@@ -22,6 +26,16 @@ public class MqttEmulator {
         createDevice("550e8400-e29b-41d4-a716-446655440003", "waterflow",
                      "plantB/coolingTower/550e8400-e29b-41d4-a716-446655440003")
     );
+
+    private static class BufferedPacket {
+        String topic;
+        String jsonPayload;
+
+        BufferedPacket(String topic, String jsonPayload) {
+            this.topic = topic;
+            this.jsonPayload = jsonPayload;
+        }
+    }
 
     public static void main(String[] args) {
         System.out.println("Starting Standalone Java MQTT Emulator...");
@@ -50,8 +64,19 @@ public class MqttEmulator {
             while (true) {
                 long ts = System.currentTimeMillis();
 
-                if (client.isConnected()) {
-                    System.out.println("[Reconnection Logic] Recovered connection.");
+                if (client.isConnected() && !offlineBuffer.isEmpty()) {
+                    System.out.println("[Reconnection Logic] Recovered connection. Flushing " + offlineBuffer.size() + " buffered packets...");
+                    while (!offlineBuffer.isEmpty() && client.isConnected()) {
+                        BufferedPacket packet = offlineBuffer.poll();
+                        try {
+                            MqttMessage msg = new MqttMessage(packet.jsonPayload.getBytes());
+                            msg.setQos(1);
+                            client.publish(packet.topic, msg);
+                        } catch (Exception e) {
+                            System.err.println("Flushing interrupted: " + e.getMessage() + ". Re-buffering remaining entries.");
+                            break;
+                        }
+                    }
                 }
 
                 for (Map<String, String> device : DEVICES) {
@@ -91,10 +116,20 @@ public class MqttEmulator {
                         continue;
                     }
 
-                    MqttMessage message = new MqttMessage(jsonPayload.getBytes());
-                    message.setQos(1);
-                    client.publish(topic, message);
-                    System.out.println("[" + deviceType + "] → " + topic + " | " + jsonPayload);
+                    if (client.isConnected()) {
+                        try {
+                            MqttMessage message = new MqttMessage(jsonPayload.getBytes());
+                            message.setQos(1);
+                            client.publish(topic, message);
+                            System.out.println("[ONLINE] [" + deviceType + "] → " + topic + " | " + jsonPayload);
+                        } catch (Exception e) {
+                            System.err.println("[ONLINE -> OFFLINE] Publish failed mid-stream, pushing to buffer: " + e.getMessage());
+                            pushToBuffer(topic, jsonPayload);
+                        }
+                    } else {
+                        System.out.println("[OFFLINE BUFFERING] Queueing data telemetry packet for topic: " + topic);
+                        pushToBuffer(topic, jsonPayload);
+                    }
                 }
 
                 Thread.sleep(2000);
@@ -102,6 +137,13 @@ public class MqttEmulator {
         } catch (Exception e) {
             System.err.println("Emulator execution failed: " + e.getMessage());
         }
+    }
+
+    private static void pushToBuffer(String topic, String jsonPayload) {
+        if (offlineBuffer.size() >= MAX_BUFFER_SIZE) {
+            offlineBuffer.poll();
+        }
+        offlineBuffer.offer(new BufferedPacket(topic, jsonPayload));
     }
 
     private static Map<String, String> createDevice(String id, String type, String topic) {
