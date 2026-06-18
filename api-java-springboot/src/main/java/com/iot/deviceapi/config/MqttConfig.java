@@ -71,23 +71,38 @@ public class MqttConfig implements CommandLineRunner {
                     public void messageArrived(String topic, MqttMessage message) {
                         try {
                             String[] parts = topic.split("/");
-                            // expect: place1 / place2 / deviceId
-                            if (parts.length != 3) return;
-                            UUID deviceId = UUID.fromString(parts[2]);
+                            if (parts.length != 3) {
+                                System.err.println("[Parsing Drop] Invalid topic structure: " + topic);
+                                return;
+                            }
 
-                            Map<String, Object> payload = objectMapper.readValue(message.getPayload(), new TypeReference<Map<String, Object>>() {});
+                            UUID deviceId;
+                            try {
+                                deviceId = UUID.fromString(parts[2]);
+                            } catch (IllegalArgumentException e) {
+                                System.err.println("[Parsing Drop] Token is not a valid UUID: " + parts[2]);
+                                return;
+                            }
 
-                            long ts = payload.containsKey("ts")
-                                ? ((Number) payload.get("ts")).longValue()
-                                : System.currentTimeMillis();
+                            Map<String, Object> payload;
+                            try {
+                                payload = objectMapper.readValue(message.getPayload(), new TypeReference<Map<String, Object>>() {});
+                            } catch (Exception e) {
+                                System.err.println("[Parsing Drop] Corrupted or non-JSON payload received: " + e.getMessage());
+                                return;
+                            }
 
-                            Map<String, Object> sensorValues = payload.containsKey("sensor_values")
-                                ? (Map<String, Object>) payload.get("sensor_values")
-                                : Map.of();
+                            if (payload == null || !payload.containsKey("ts") || !payload.containsKey("sensor_values")) {
+                                System.err.println("[Parsing Drop] Missing mandatory 'ts' or 'sensor_values' field");
+                                return;
+                            }
+
+                            long ts = ((Number) payload.get("ts")).longValue();
+                            Map<String, Object> sensorValues = (Map<String, Object>) payload.get("sensor_values");
 
                             boolean exists = deviceRepository.existsById(deviceId);
                             if (!exists) {
-                                System.out.println("MQTT Ingestion: Unknown device " + deviceId + ", skipping");
+                                System.out.println("MQTT Ingestion: Unknown device " + deviceId + ", skipping save execution");
                                 return;
                             }
 
@@ -96,11 +111,12 @@ public class MqttConfig implements CommandLineRunner {
                             Reading reading = new Reading();
                             reading.setKey(key);
                             reading.setSensorValues(sensorValues);
+                            
                             readingRepository.save(reading);
-                            System.out.println("MQTT Ingestion: Saved reading for device " + deviceId);
+                            System.out.println("MQTT Ingestion: Saved reading telemetry for device " + deviceId);
 
                         } catch (Exception e) {
-                            System.err.println("MQTT Ingestion: Error processing message: " + e.getMessage());
+                            System.err.println("MQTT Ingestion: Critical exception handling packet: " + e.getMessage());
                         }
                     }
 

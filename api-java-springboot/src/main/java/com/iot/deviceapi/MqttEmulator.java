@@ -70,7 +70,14 @@ public class MqttEmulator {
                         payload.put("ts", ts);
                         payload.put("sensor_values", sensorValues);
 
-                        String jsonPayload = objectMapper.writeValueAsString(payload);
+                        String jsonPayload;
+                        try {
+                            jsonPayload = objectMapper.writeValueAsString(payload);
+                        } catch (Exception e) {
+                            System.err.println("Serialization Error on Device " + deviceType + ": " + e.getMessage());
+                            continue;
+                        }
+
                         MqttMessage message = new MqttMessage(jsonPayload.getBytes());
                         message.setQos(1);
                         client.publish(topic, message);
