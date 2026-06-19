@@ -13,16 +13,16 @@ class TelemetryService {
         return await Reading.save(deviceId, sensorValues, timestamp);
     }
 
-    async getTelemetry(deviceId, startTime, endTime) {
+    async getTelemetry(deviceId, startTime, endTime, page = 1, limit = 20) {
         const hasDevice = await this.verifyDeviceExists(deviceId);
         if (!hasDevice) return null;
 
         if (startTime !== undefined && endTime !== undefined) {
-            return await Reading.getHistorical(deviceId, parseInt(startTime, 10), parseInt(endTime, 10));
+            return await Reading.getHistorical(deviceId, startTime, endTime, page, limit);
         }
         
         const latest = await Reading.getLatest(deviceId);
-        return latest || {};
+        return latest ? { isLatest: true, data: latest } : { isLatest: true, data: {} };
     }
 }
 

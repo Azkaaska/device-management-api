@@ -2,8 +2,21 @@ const { Device } = require('../models');
 const sequelize = require('../config/postgres');
 
 class DeviceService {
-    async getAllDevices() {
-        return await Device.findAll();
+    async getAllDevices(page = 1, limit = 10) {
+        const offset = (page - 1) * limit;
+        
+        const { count, rows } = await Device.findAndCountAll({
+            limit: parseInt(limit, 10),
+            offset: parseInt(offset, 10),
+            order: [['created_at', 'DESC']]
+        });
+
+        return {
+            devices: rows,
+            totalItems: count,
+            totalPages: Math.ceil(count / limit),
+            currentPage: parseInt(page, 10)
+        };
     }
 
     async getDeviceById(id) {

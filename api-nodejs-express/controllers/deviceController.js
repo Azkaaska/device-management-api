@@ -3,8 +3,20 @@ const deviceService = require('../services/deviceService');
 class DeviceController {
     async getAll(req, res, next) {
         try {
-            const devices = await deviceService.getAllDevices();
-            res.json(devices);
+            const page = parseInt(req.query.page, 10) || 1;
+            const limit = parseInt(req.query.limit, 10) || 10;
+
+            const result = await deviceService.getAllDevices(page, limit);
+            
+            res.json({
+                data: result.devices,
+                pagination: {
+                    total_items: result.totalItems,
+                    total_pages: result.totalPages,
+                    current_page: result.currentPage,
+                    limit: limit
+                }
+            });
         } catch (err) {
             next(err);
         }

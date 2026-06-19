@@ -10,35 +10,13 @@ function getBucketDate(ts) {
 }
 
 class Reading {
-    static async initTable() {
-        const client = await cassandra.getSession();
-        
-        const createKeyspaceQuery = `
-            CREATE KEYSPACE IF NOT EXISTS device_telemetry 
-            WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
-        `;
-        await client.execute(createKeyspaceQuery);
-
-        const createTableQuery = `
-            CREATE TABLE IF NOT EXISTS device_telemetry.readings (
-                device_id uuid,
-                bucket_date text,
-                ts bigint,
-                sensor_values text,
-                PRIMARY KEY ((device_id, bucket_date), ts)
-            ) WITH CLUSTERING ORDER BY (ts DESC);
-        `;
-        await client.execute(createTableQuery);
-        console.log("Cassandra: Keyspace dan Tabel 'readings' siap digunakan.");
-    }
-
     static async save(deviceId, sensorValues, ts) {
         const client = await cassandra.getSession();
         const timestamp = ts || Date.now();
         const bucketDate = getBucketDate(timestamp);
         const sensorValuesStr = JSON.stringify(sensorValues);
 
-        const query = 'INSERT INTO device_telemetry.readings (device_id, bucket_date, ts, sensor_values) VALUES (?, ?, ?, ?)';
+        const query = 'INSERT INTO readings (device_id, bucket_date, ts, sensor_values) VALUES (?, ?, ?, ?)';
         await client.execute(query, [deviceId, bucketDate, timestamp, sensorValuesStr], { prepare: true });
 
         return {
@@ -57,7 +35,7 @@ class Reading {
             const checkTime = now - i * 24 * 60 * 60 * 1000;
             const bucketDate = getBucketDate(checkTime);
 
-            const query = 'SELECT device_id, bucket_date, ts, sensor_values FROM device_telemetry.readings WHERE device_id = ? AND bucket_date = ? LIMIT 1';
+            const query = 'SELECT device_id, bucket_date, ts, sensor_values FROM readings WHERE device_id = ? AND bucket_date = ? LIMIT 1';
             const result = await client.execute(query, [deviceId, bucketDate], { prepare: true });
             if (result.rows.length > 0) {
                 const row = result.rows[0];
@@ -72,7 +50,7 @@ class Reading {
         return null;
     }
 
-    static async getHistorical(deviceId, startTime, endTime) {
+    static async getHistorical(deviceId, startTime, endTime, page = 1, limit = 20) {
         const client = await cassandra.getSession();
         const startLocal = new Date(Number(startTime) + 7 * 60 * 60 * 1000);
         const endLocal = new Date(Number(endTime) + 7 * 60 * 60 * 1000);
@@ -93,7 +71,7 @@ class Reading {
 
         const allReadings = [];
         for (const bucket of bucketDates) {
-            const query = 'SELECT device_id, bucket_date, ts, sensor_values FROM device_telemetry.readings WHERE device_id = ? AND bucket_date = ? AND ts >= ? AND ts <= ?';
+            const query = 'SELECT device_id, bucket_date, ts, sensor_values FROM readings WHERE device_id = ? AND bucket_date = ? AND ts >= ? AND ts <= ?';
             const result = await client.execute(query, [deviceId, bucket, startTime, endTime], { prepare: true });
             for (const row of result.rows) {
                 allReadings.push({
@@ -106,7 +84,17 @@ class Reading {
         }
 
         allReadings.sort((a, b) => b.ts - a.ts);
-        return allReadings;
+
+        const totalItems = allReadings.length;
+        const offset = (page - 1) * limit;
+        const paginatedReadings = allReadings.slice(offset, offset + limit);
+
+        return {
+            readings: paginatedReadings,
+            totalItems: totalItems,
+            totalPages: Math.ceil(totalItems / limit),
+            currentPage: parseInt(page, 10)
+        };
     }
 }
 
