@@ -21,7 +21,7 @@ public class Device {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "device_id")
+    @Column(name = "device_id", updatable = false, nullable = false)
     @JsonProperty("device_id")
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "550e8400-e29b-41d4-a716-446655440000")
     private UUID deviceId;
@@ -36,7 +36,7 @@ public class Device {
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "Thermometer")
     private String deviceType;
 
-    @Column(nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20)
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, defaultValue = "ACTIVE", example = "ACTIVE")
     private String status = "ACTIVE";
 

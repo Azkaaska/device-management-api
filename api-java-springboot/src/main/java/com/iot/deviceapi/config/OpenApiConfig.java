@@ -31,6 +31,6 @@ public class OpenApiConfig {
 
     @Bean
     public OpenAPI customOpenAPI() {
-        return new OpenAPI(); // Skema global sudah ditangani oleh blok static di atas
+        return new OpenAPI();
     }
 }
