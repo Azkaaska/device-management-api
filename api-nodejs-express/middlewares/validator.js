@@ -1,7 +1,7 @@
 function validateDevicePayload(req, res, next) {
-    const { device_name } = req.body;
-    if (!device_name) {
-        return res.status(400).json({ error: 'device_name is required' });
+    const { name, type } = req.body;
+    if (!name || !type) {
+        return res.status(400).json({ error: 'name and type parameters are required' });
     }
     next();
 }

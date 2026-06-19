@@ -2,15 +2,15 @@ const { Reading, Device } = require('../models');
 
 class TelemetryService {
     async verifyDeviceExists(deviceId) {
-        const count = await Device.count({ where: { device_id: deviceId } });
+        const count = await Device.count({ where: { id: deviceId } });
         return count > 0;
     }
 
-    async saveTelemetry(deviceId, sensorValues, timestamp = Date.now()) {
+    async saveTelemetry(deviceId, temperature, humidity, tsDevice) {
         const hasDevice = await this.verifyDeviceExists(deviceId);
         if (!hasDevice) return null;
 
-        return await Reading.save(deviceId, sensorValues, timestamp);
+        return await Reading.save(deviceId, temperature, humidity, tsDevice);
     }
 
     async getTelemetry(deviceId, startTime, endTime, page = 1, limit = 20) {

@@ -7,8 +7,7 @@ class DeviceService {
         
         const { count, rows } = await Device.findAndCountAll({
             limit: parseInt(limit, 10),
-            offset: parseInt(offset, 10),
-            order: [['created_at', 'DESC']]
+            offset: parseInt(offset, 10)
         });
 
         return {
@@ -57,7 +56,7 @@ class DeviceService {
             const device = await Device.findByPk(id, { transaction: t });
             if (!device) return false;
 
-            device.status = 'INACTIVE';
+            device.status = 'inactive';
             await device.save({ transaction: t });
             await t.commit();
             return true;

@@ -35,10 +35,12 @@ async function getSession() {
             CREATE TABLE IF NOT EXISTS readings (
                 device_id uuid,
                 bucket_date text,
-                ts bigint,
-                sensor_values text,
-                PRIMARY KEY ((device_id, bucket_date), ts)
-            ) WITH CLUSTERING ORDER BY (ts DESC)
+                ts_device bigint,
+                ts_receive bigint,
+                temperature float,
+                humidity float,
+                PRIMARY KEY ((device_id, bucket_date), ts_device)
+            ) WITH CLUSTERING ORDER BY (ts_device DESC)
         `);
 
         initialized = true;

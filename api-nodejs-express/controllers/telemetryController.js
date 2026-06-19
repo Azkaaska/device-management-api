@@ -12,7 +12,6 @@ class TelemetryController {
             const result = await telemetryService.getTelemetry(id, start_time, end_time, page, limit);
             if (result === null) return res.status(404).json({ error: 'Device not found' });
             
-            // Check if service responded with historical dataset array or isolated singular document
             if (!result.isLatest) {
                 return res.json({
                     data: result.readings,
@@ -25,7 +24,6 @@ class TelemetryController {
                 });
             }
 
-            // Fallback default output for real-time tracking points
             res.json(result.data);
         } catch (err) {
             next(err);
@@ -35,9 +33,15 @@ class TelemetryController {
     async postTelemetry(req, res, next) {
         try {
             const { id } = req.params;
-            const { sensor_values } = req.body;
+            const { ts, temperature, humidity } = req.body;
 
-            const telemetry = await telemetryService.saveTelemetry(id, sensor_values);
+            if (temperature === undefined || humidity === undefined) {
+                return res.status(400).json({ error: 'temperature and humidity parameters are required' });
+            }
+
+            const tsDevice = ts || Date.now();
+            const telemetry = await telemetryService.saveTelemetry(id, temperature, humidity, tsDevice);
+            
             if (!telemetry) return res.status(404).json({ error: 'Device not found' });
 
             res.status(201).json(telemetry);

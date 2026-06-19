@@ -19,37 +19,33 @@ function bootstrapMqttWorker() {
     });
 
     client.on('offline', () => {
-        console.warn('MQTT Ingestion Engine: Connection lost. Transitioning to OFFLINE state.');
+        console.warn('MQTT Ingestion Engine: Connection lost.');
     });
 
     client.on('error', (err) => {
-        console.error('MQTT Ingestion Engine: Broker Error event:', err.message);
+        console.error('MQTT Ingestion Engine Error:', err.message);
     });
 
     client.on('message', async (topic, message) => {
         try {
             const parts = topic.split('/');
-            if (parts.length !== 3) {
-                console.warn(`[Parsing Drop] Invalid topic hierarchy received: ${topic}`);
-                return;
-            }
+            if (parts.length !== 3) return;
             
             const deviceId = parts[2];
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            if (!uuidRegex.test(deviceId)) {
-                console.warn(`[Parsing Drop] Invalid UUID string token found: ${deviceId}`);
-                return;
-            }
+            if (!uuidRegex.test(deviceId)) return;
 
             const payload = JSON.parse(message.toString());
-            const { ts, sensor_values } = payload;
+            const { ts, temperature, humidity } = payload;
 
-            if (!ts || !sensor_values) {
-                console.warn(`[Parsing Drop] Missing 'ts' or 'sensor_values' field in payload.`);
+            if (temperature === undefined || humidity === undefined) {
+                console.warn(`[Parsing Drop] Missing numeric sensor metrics on topic: ${topic}`);
                 return;
             }
 
-            const savedResult = await telemetryService.saveTelemetry(deviceId, sensor_values, ts);
+            const tsDevice = ts || Date.now();
+            const savedResult = await telemetryService.saveTelemetry(deviceId, temperature, humidity, tsDevice);
+            
             if (!savedResult) {
                 console.log(`MQTT Ingestion Engine: Unknown device parsed from ID (${deviceId}), telemetry skipped.`);
                 return;

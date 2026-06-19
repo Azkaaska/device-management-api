@@ -3,7 +3,7 @@ const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
 
-const { sequelize, Reading } = require('./models');
+const { sequelize } = require('./models');
 const apiRouter = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
 const { bootstrapMqttWorker } = require('./workers/mqttIngestion');
@@ -25,7 +25,6 @@ sequelize.sync()
     .then(() => {
         console.log('PostgreSQL Database synchronized successfully.');
 
-        Reading.initTable();
         bootstrapMqttWorker();
 
         app.listen(PORT, () => {
