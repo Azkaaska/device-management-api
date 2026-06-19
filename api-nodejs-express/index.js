@@ -2,9 +2,11 @@ const express = require('express');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
-const { sequelize } = require('./models');
-const devicesRouter = require('./routes/devices');
-const telemetryRouter = require('./routes/telemetry');
+
+const { sequelize, Reading } = require('./models');
+const apiRouter = require('./routes');
+const errorHandler = require('./middlewares/errorHandler');
+const { bootstrapMqttWorker } = require('./workers/mqttIngestion');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,79 +17,22 @@ app.disable('x-powered-by');
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
 app.use('/docs-ui', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-app.use('/api/devices', devicesRouter);
-app.use('/api/devices', telemetryRouter);
+app.use('/api/v1', apiRouter);
 
-sequelize.sync().then(() => {
-    console.log('Database synced');
-    
-    const mqtt = require('mqtt');
-    const { Device, Reading } = require('./models');
-    const mqttHost = process.env.MQTT_HOST || '127.0.0.1';
-    const mqttPort = process.env.MQTT_PORT || '1883';
+app.use(errorHandler);
 
-    const mqttOptions = {
-        reconnectPeriod: 5000, // Wait 5 seconds before retrying connection
-        connectTimeout: 30 * 1000, // 30 seconds connection timeout
-    };
+sequelize.sync()
+    .then(() => {
+        console.log('PostgreSQL Database synchronized successfully.');
 
-    console.log(`MQTT Ingestion: Connecting to broker at mqtt://${mqttHost}:${mqttPort}...`);
-    const client = mqtt.connect(`mqtt://${mqttHost}:${mqttPort}`, mqttOptions);
+        Reading.initTable();
+        bootstrapMqttWorker();
 
-    client.on('connect', () => {
-        console.log(`MQTT Ingestion: Connected to broker (mqtt://${mqttHost}:${mqttPort})`);
-        client.subscribe('+/+/+');
+        app.listen(PORT, () => {
+            console.log(`Express HTTP Application cluster running on port ${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('CRITICAL: Failed to synchronize engine modules:', err);
+        process.exit(1);
     });
-
-    client.on('offline', () => {
-        console.warn('MQTT Ingestion: Broker connection lost. Entering OFFLINE state.');
-    });
-
-    client.on('error', (err) => {
-        console.error('MQTT Ingestion: Connection Error event:', err.message);
-    });
-
-    client.on('message', async (topic, message) => {
-        try {
-            const parts = topic.split('/');
-            if (parts.length !== 3) {
-                console.warn(`[Parsing Drop] Invalid topic hierarchy received: ${topic}`);
-                return;
-            }
-            
-            const deviceId = parts[2];
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            if (!uuidRegex.test(deviceId)) {
-                console.warn(`[Parsing Drop] Invalid UUID string token found: ${deviceId}`);
-                return;
-            }
-
-            const payload = JSON.parse(message.toString());
-            const ts = payload.ts;
-            const sensorValues = payload.sensor_values;
-
-            if (!ts || !sensorValues) {
-                console.warn(`[Parsing Drop] Missing 'ts' or 'sensor_values' field in payload.`);
-                return;
-            }
-
-            const device = await Device.findByPk(deviceId);
-            if (!device) {
-                console.log(`MQTT Ingestion: Unknown device registered inside database ${deviceId}, skipping save`);
-                return;
-            }
-
-            await Reading.save(deviceId, sensorValues, ts);
-            console.log(`MQTT Ingestion: Successfully saved telemetry for device ${deviceId}`);
-
-        } catch (err) {
-            console.error('[MQTT Ingestion Engine] Stream processing error:', err.message);
-        }
-    });
-
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-    });
-}).catch(err => {
-    console.error('Failed to sync database:', err);
-});
