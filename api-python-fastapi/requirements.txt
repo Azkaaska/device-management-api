@@ -8,3 +8,4 @@ pydantic-settings>=2.0.0
 cassandra-driver>=3.29.0
 pyasyncore>=1.0.0
 paho-mqtt>=2.0.0
+httpx>=0.27.0

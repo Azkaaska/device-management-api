@@ -16,7 +16,7 @@ class CassandraManager:
             )
 
         self.cluster = Cluster(
-            contact_points=settings.CASSANDRA_CONTACT_POINTS,
+            contact_points=settings.CASSANDRA_CONTACT_POINTS.split(","),
             port=settings.CASSANDRA_PORT,
             auth_provider=auth_provider,
         )

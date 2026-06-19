@@ -67,7 +67,7 @@ class Reading:
         return None
 
     @classmethod
-    def get_historical(cls, device_id: UUID, start_time: int, end_time: int) -> list:
+    def get_historical(cls, device_id: UUID, start_time: int, end_time: int, page: int = 1, limit: int = 100) -> list:
         start_dt = datetime.fromtimestamp(start_time / 1000.0, tz=TZ_LOCAL)
         end_dt = datetime.fromtimestamp(end_time / 1000.0, tz=TZ_LOCAL)
         
@@ -94,4 +94,9 @@ class Reading:
                 })
                 
         readings.sort(key=lambda r: r['ts'], reverse=True)
-        return readings
+        
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        
+        return readings[start_idx:end_idx]
+    

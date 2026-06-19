@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Path
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Path, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from typing import List, Annotated
@@ -7,18 +7,28 @@ from uuid import UUID
 from app.api import deps
 from app.models.device import Device
 from app.schemas import device as device_schemas
+from app.core.notifier import notify_device_creation
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
 
 @router.get("/", response_model=List[device_schemas.Device], summary="Retrieve a list of devices")
-def read_devices(db: Session = Depends(deps.get_db)):
+def read_devices(
+    page: int = Query(default=1, ge=1, description="The page number to retrieve (1-indexed)"),
+    limit: int = Query(default=100, ge=1, le=1000, description="The maximum number of device records to return per page"),
+    db: Session = Depends(deps.get_db)
+):
     try:
-        return db.query(Device).all()
+        offset = (page - 1) * limit
+        return db.query(Device).offset(offset).limit(limit).all()
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.post("/", response_model=device_schemas.Device, status_code=status.HTTP_201_CREATED, summary="Create a new device")
-def create_device(device: device_schemas.DeviceInput, db: Session = Depends(deps.get_db)):
+def create_device(
+    device: device_schemas.DeviceInput, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(deps.get_db)
+):
     try:
         db_device = Device(
             device_name=device.device_name,
@@ -30,6 +40,14 @@ def create_device(device: device_schemas.DeviceInput, db: Session = Depends(deps
         db.add(db_device)
         db.commit()
         db.refresh(db_device)
+        
+        background_tasks.add_task(
+            notify_device_creation,
+            str(db_device.device_id),
+            db_device.device_name,
+            db_device.device_type
+        )
+        
         return db_device
     except IntegrityError as e:
         db.rollback()

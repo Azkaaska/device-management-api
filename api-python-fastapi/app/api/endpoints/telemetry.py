@@ -15,6 +15,8 @@ def read_telemetry(
     device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")],
     start_time: Optional[int] = Query(default=None, example=1780894449000),
     end_time: Optional[int] = Query(default=None, example=1780894450000),
+    page: int = Query(default=1, ge=1, description="The page number to retrieve (1-indexed)"),
+    limit: int = Query(default=100, ge=1, le=500, description="The maximum number of telemetry items to return per page"),
     db: Session = Depends(deps.get_db)
 ):
     try:
@@ -23,7 +25,13 @@ def read_telemetry(
             raise HTTPException(status_code=404, detail="Device not found")
 
         if start_time is not None and end_time is not None:
-            return Reading.get_historical(device_id, start_time, end_time)
+            return Reading.get_historical(
+                device_id=device_id, 
+                start_time=start_time, 
+                end_time=end_time, 
+                page=page, 
+                limit=limit
+            )
         else:
             reading = Reading.get_latest(device_id)
             return reading if reading is not None else {}
@@ -48,3 +56,4 @@ def create_telemetry(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
