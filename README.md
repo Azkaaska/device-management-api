@@ -18,13 +18,13 @@ All three APIs share the exact same database schema and routing conventions:
 *   **Port**: All servers default to listening on `http://localhost:3000`.
 
 ### Endpoints
-*   `POST /api/devices` - Create a device
-*   `GET /api/devices` - Get all devices
-*   `GET /api/devices/{id}` - Get a specific device
-*   `PUT /api/devices/{id}` - Update a device
-*   `DELETE /api/devices/{id}` - Delete a device
-*   `POST /api/devices/{id}/telemetry` - Push telemetry data for a device
-*   `GET /api/devices/{id}/telemetry` - Get the latest telemetry data point for a device
+*   `POST /api/v1/devices` - Create a device
+*   `GET /api/v1/devices` - Get all devices
+*   `GET /api/v1/devices/{id}` - Get a specific device
+*   `PUT /api/v1/devices/{id}` - Update a device
+*   `DELETE /api/v1/devices/{id}` - Delete a device
+*   `POST /api/v1/devices/{id}/telemetry` - Push telemetry data for a device
+*   `GET /api/v1/devices/{id}/telemetry` - Get the latest telemetry data point for a device
 
 ## Testing & Documentation
 A unified `postman_collection.json` is provided in the root directory. You can import this into Postman to test any of the three servers immediately (it handles UUID injection dynamically).
