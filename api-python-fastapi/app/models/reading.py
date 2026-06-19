@@ -2,22 +2,23 @@ import json
 import time
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
-from database.cassandra import get_cassandra_session
+from app.core.cassandra_db import cassandra_db
 
 TZ_LOCAL = timezone(timedelta(hours=7))
 
-session = get_cassandra_session()
-session.execute("""
-    CREATE TABLE IF NOT EXISTS readings (
-        device_id uuid,
-        bucket_date text,
-        ts bigint,
-        sensor_values text,
-        PRIMARY KEY ((device_id, bucket_date), ts)
-    ) WITH CLUSTERING ORDER BY (ts DESC);
-""")
-
 class Reading:
+    @staticmethod
+    def init_table():
+        cassandra_db.session.execute("""
+            CREATE TABLE IF NOT EXISTS readings (
+                device_id uuid,
+                bucket_date text,
+                ts bigint,
+                sensor_values text,
+                PRIMARY KEY ((device_id, bucket_date), ts)
+            ) WITH CLUSTERING ORDER BY (ts DESC);
+        """)
+
     @staticmethod
     def get_bucket_date(ts_ms: int) -> str:
         dt = datetime.fromtimestamp(ts_ms / 1000.0, tz=TZ_LOCAL)
@@ -34,7 +35,7 @@ class Reading:
             INSERT INTO readings (device_id, bucket_date, ts, sensor_values)
             VALUES (%s, %s, %s, %s)
         """
-        session.execute(query, (device_id, bucket_date, ts, sensor_values_str))
+        cassandra_db.session.execute(query, (device_id, bucket_date, ts, sensor_values_str))
         return {
             "device_id": device_id,
             "bucket_date": bucket_date,
@@ -55,7 +56,7 @@ class Reading:
                 WHERE device_id = %s AND bucket_date = %s 
                 LIMIT 1
             """
-            rows = session.execute(query, (device_id, bucket_date))
+            rows = cassandra_db.session.execute(query, (device_id, bucket_date))
             for row in rows:
                 return {
                     "device_id": row.device_id,
@@ -83,7 +84,7 @@ class Reading:
                 FROM readings 
                 WHERE device_id = %s AND bucket_date = %s AND ts >= %s AND ts <= %s
             """
-            rows = session.execute(query, (device_id, bucket, start_time, end_time))
+            rows = cassandra_db.session.execute(query, (device_id, bucket, start_time, end_time))
             for row in rows:
                 readings.append({
                     "device_id": row.device_id,

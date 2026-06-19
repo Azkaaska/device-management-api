@@ -4,25 +4,21 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from typing import List, Annotated
 from uuid import UUID
 
-import schemas
-from database import postgres
-from models.device import Device
+from app.api import deps
+from app.models.device import Device
+from app.schemas import device as device_schemas
 
-router = APIRouter(
-    prefix="/api/devices",
-    tags=["Devices"]
-)
+router = APIRouter(prefix="/devices", tags=["Devices"])
 
-@router.get("/", response_model=List[schemas.Device], summary="Retrieve a list of devices", description="Returns an array of all registered devices")
-def read_devices(db: Session = Depends(postgres.get_db)):
+@router.get("/", response_model=List[device_schemas.Device], summary="Retrieve a list of devices")
+def read_devices(db: Session = Depends(deps.get_db)):
     try:
-        devices = db.query(Device).all()
-        return devices
+        return db.query(Device).all()
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.post("/", response_model=schemas.Device, status_code=status.HTTP_201_CREATED, summary="Create a new device", description="Registers a new IoT device in the system")
-def create_device(device: schemas.DeviceInput, db: Session = Depends(postgres.get_db)):
+@router.post("/", response_model=device_schemas.Device, status_code=status.HTTP_201_CREATED, summary="Create a new device")
+def create_device(device: device_schemas.DeviceInput, db: Session = Depends(deps.get_db)):
     try:
         db_device = Device(
             device_name=device.device_name,
@@ -42,8 +38,8 @@ def create_device(device: schemas.DeviceInput, db: Session = Depends(postgres.ge
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.get("/{device_id}", response_model=schemas.Device, summary="Get a device by ID", description="Returns detailed information about a specific device")
-def read_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(postgres.get_db)):
+@router.get("/{device_id}", response_model=device_schemas.Device, summary="Get a device by ID")
+def read_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(deps.get_db)):
     try:
         device = db.query(Device).filter(Device.device_id == device_id).first()
         if device is None:
@@ -54,8 +50,8 @@ def read_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.put("/{device_id}", response_model=schemas.Device, summary="Update a device", description="Updates the attributes of an existing device")
-def update_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], device: schemas.DeviceInput, db: Session = Depends(postgres.get_db)):
+@router.put("/{device_id}", response_model=device_schemas.Device, summary="Update a device")
+def update_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], device: device_schemas.DeviceInput, db: Session = Depends(deps.get_db)):
     try:
         db_device = db.query(Device).filter(Device.device_id == device_id).first()
         if db_device is None:
@@ -80,8 +76,8 @@ def update_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a7
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a device (Soft Delete)", description="Soft deletes a device by setting its status to INACTIVE")
-def delete_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(postgres.get_db)):
+@router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a device (Soft Delete)")
+def delete_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(deps.get_db)):
     try:
         db_device = db.query(Device).filter(Device.device_id == device_id).first()
         if db_device is None:
