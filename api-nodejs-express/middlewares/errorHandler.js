@@ -13,7 +13,8 @@ function errorHandler(err, req, res, next) {
 
     return res.status(500).json({
         error: 'Internal server error',
-        detail: process.env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred'
+        // detail: process.env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred'
+        detail: err.message
     });
 }
 

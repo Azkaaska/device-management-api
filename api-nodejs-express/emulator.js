@@ -6,11 +6,15 @@ const mqttPort = process.env.MQTT_PORT || '1883';
 const devices = [
     {
         id: '550e8400-e29b-41d4-a716-446655440001',
-        topic: 'buildingA/floor2/550e8400-e29b-41d4-a716-446655440001'
+        topic: 'buildingA/floor1/550e8400-e29b-41d4-a716-446655440001'
     },
     {
         id: '550e8400-e29b-41d4-a716-446655440002',
-        topic: 'plantB/chiller4/550e8400-e29b-41d4-a716-446655440002'
+        topic: 'buildingA/floor2/550e8400-e29b-41d4-a716-446655440002'
+    },
+    {
+        id: '550e8400-e29b-41d4-a716-446655440003',
+        topic: 'buildingA/floor3/550e8400-e29b-41d4-a716-446655440003'
     }
 ];
 
@@ -36,4 +40,4 @@ setInterval(() => {
         client.publish(device.topic, serializedPayload, { qos: 1 });
         console.log(`[ONLINE EMULATOR] → ${device.topic} | ${serializedPayload}`);
     }
-}, 2000);
+}, 5000);

@@ -15,7 +15,7 @@ function bootstrapMqttWorker() {
 
     client.on('connect', () => {
         console.log(`MQTT Ingestion Engine: Connected successfully.`);
-        client.subscribe('+/+/+');
+        client.subscribe('buildingA/+/+');
     });
 
     client.on('offline', () => {

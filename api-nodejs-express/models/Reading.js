@@ -1,8 +1,7 @@
 const cassandra = require('../config/cassandra');
 
 function getBucketDate(ts) {
-    const tzOffset = 7 * 60 * 60 * 1000; 
-    const localDate = new Date(Number(ts) + tzOffset);
+    const localDate = new Date(Number(ts));
     const yyyy = localDate.getUTCFullYear();
     const mm = String(localDate.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(localDate.getUTCDate()).padStart(2, '0');
@@ -19,7 +18,7 @@ class Reading {
             INSERT INTO readings (device_id, bucket_date, ts_device, ts_receive, temperature, humidity) 
             VALUES (?, ?, ?, ?, ?, ?)
         `;
-        
+
         await client.execute(
             query, 
             [deviceId, bucketDate, Number(tsDevice), tsReceive, parseFloat(temperature), parseFloat(humidity)], 

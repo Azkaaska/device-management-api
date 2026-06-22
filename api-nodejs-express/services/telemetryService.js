@@ -1,4 +1,5 @@
 const { Reading, Device } = require('../models');
+const eventHub = require('../utils/eventHub');
 
 class TelemetryService {
     async verifyDeviceExists(deviceId) {
@@ -10,7 +11,14 @@ class TelemetryService {
         const hasDevice = await this.verifyDeviceExists(deviceId);
         if (!hasDevice) return null;
 
-        return await Reading.save(deviceId, temperature, humidity, tsDevice);
+        const telemetry = await Reading.save(deviceId, temperature, humidity, tsDevice);
+        
+        if (telemetry) {
+            // Publish telemetry to the event hub for real-time consumers
+            eventHub.emit('telemetry:new', telemetry);
+        }
+
+        return telemetry;
     }
 
     async getTelemetry(deviceId, startTime, endTime, page = 1, limit = 20) {
