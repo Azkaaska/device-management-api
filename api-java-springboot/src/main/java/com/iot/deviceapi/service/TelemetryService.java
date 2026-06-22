@@ -32,13 +32,16 @@ public class TelemetryService {
     public Reading pushTelemetry(UUID id, ReadingInput input) {
         deviceService.getDeviceById(id);
 
-        long ts = System.currentTimeMillis();
-        String bucketDate = Instant.ofEpochMilli(ts).atZone(localZone).format(formatter);
+        long tsReceive = System.currentTimeMillis();
+        long tsDevice = input.getTs();
+        String bucketDate = Instant.ofEpochMilli(tsReceive).atZone(localZone).format(formatter);
 
-        ReadingKey key = new ReadingKey(id, bucketDate, ts);
+        ReadingKey key = new ReadingKey(id, bucketDate, tsDevice);
         Reading reading = new Reading();
         reading.setKey(key);
-        reading.setSensorValues(input.getSensorValues());
+        reading.setTsReceive(tsReceive);
+        reading.setTemperature(input.getTemperature());
+        reading.setHumidity(input.getHumidity());
 
         return readingRepository.save(reading);
     }
@@ -65,7 +68,6 @@ public class TelemetryService {
         LocalDate start = startLocal.toLocalDate();
         LocalDate end = endLocal.toLocalDate();
 
-        // 1. Gather all data across the calculated date buckets
         for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
             String bucket = date.format(formatter);
             List<Reading> list = readingRepository.findByDeviceAndBucketAndTsRange(deviceId, bucket, startTime, endTime);
@@ -74,13 +76,11 @@ public class TelemetryService {
             }
         }
 
-        // 2. Sort total combined results descending chronologically
-        allReadings.sort((a, b) -> b.getTs().compareTo(a.getTs()));
+        allReadings.sort((a, b) -> b.getTsDevice().compareTo(a.getTsDevice()));
 
-        // 3. Compute target sublist slice indices based on request params
         int fromIndex = page * limit;
         if (fromIndex >= allReadings.size()) {
-            return new ArrayList<>(); // Return empty array if page index drifts completely out of bounds
+            return new ArrayList<>();
         }
         int toIndex = Math.min(fromIndex + limit, allReadings.size());
 

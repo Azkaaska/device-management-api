@@ -18,15 +18,15 @@ public class ReadingKey implements Serializable {
     @PrimaryKeyColumn(name = "bucket_date", type = PrimaryKeyType.PARTITIONED, ordinal = 1)
     private String bucketDate;
 
-    @PrimaryKeyColumn(name = "ts", type = PrimaryKeyType.CLUSTERED, ordering = Ordering.DESCENDING, ordinal = 2)
-    private Long ts;
+    @PrimaryKeyColumn(name = "ts_device", type = PrimaryKeyType.CLUSTERED, ordering = Ordering.DESCENDING, ordinal = 2)
+    private Long tsDevice;
 
     public ReadingKey() {}
 
-    public ReadingKey(UUID deviceId, String bucketDate, Long ts) {
+    public ReadingKey(UUID deviceId, String bucketDate, Long tsDevice) {
         this.deviceId = deviceId;
         this.bucketDate = bucketDate;
-        this.ts = ts;
+        this.tsDevice = tsDevice;
     }
 
     public UUID getDeviceId() {
@@ -45,12 +45,12 @@ public class ReadingKey implements Serializable {
         this.bucketDate = bucketDate;
     }
 
-    public Long getTs() {
-        return ts;
+    public Long getTsDevice() {
+        return tsDevice;
     }
 
-    public void setTs(Long ts) {
-        this.ts = ts;
+    public void setTsDevice(Long tsDevice) {
+        this.tsDevice = tsDevice;
     }
 
     @Override
@@ -60,11 +60,11 @@ public class ReadingKey implements Serializable {
         ReadingKey that = (ReadingKey) o;
         return Objects.equals(deviceId, that.deviceId) &&
                 Objects.equals(bucketDate, that.bucketDate) &&
-                Objects.equals(ts, that.ts);
+                Objects.equals(tsDevice, that.tsDevice);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(deviceId, bucketDate, ts);
+        return Objects.hash(deviceId, bucketDate, tsDevice);
     }
 }

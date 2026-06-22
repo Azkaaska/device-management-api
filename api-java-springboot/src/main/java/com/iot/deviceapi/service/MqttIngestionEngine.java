@@ -44,6 +44,7 @@ public class MqttIngestionEngine {
 
     @PostConstruct
     public void init() {
+        System.out.println("[MQTT INGESTION] Initializing MQTT Ingestion Service thread...");
         Thread subscriberThread = new Thread(this::connectionLoop);
         subscriberThread.setDaemon(true);
         subscriberThread.start();
@@ -55,6 +56,7 @@ public class MqttIngestionEngine {
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                System.out.println("[MQTT INGESTION] Attempting to connect to broker: " + brokerUrl);
                 client = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
                 MqttConnectOptions options = new MqttConnectOptions();
                 options.setCleanSession(true);
@@ -63,18 +65,19 @@ public class MqttIngestionEngine {
                 client.setCallback(new MqttCallbackExtended() {
                     @Override
                     public void connectComplete(boolean reconnect, String serverURI) {
-                        System.out.println("MQTT Ingestion: Connected to broker " + serverURI);
+                        String status = reconnect ? "Reconnected" : "Connected";
+                        System.out.println("[MQTT INGESTION] " + status + " to broker: " + serverURI);
                         try {
-                            client.subscribe("+/+/+", 1);
-                            System.out.println("MQTT Ingestion: Successfully subscribed to topics (+/+/+)");
+                            client.subscribe("buildingA/+/+", 1);
+                            System.out.println("[MQTT INGESTION] Successfully subscribed to topic: buildingA/+/+");
                         } catch (MqttException e) {
-                            System.err.println("MQTT Ingestion: Failed to subscribe: " + e.getMessage());
+                            System.err.println("[MQTT INGESTION] Subscription failed: " + e.getMessage());
                         }
                     }
 
                     @Override
                     public void connectionLost(Throwable cause) {
-                        System.err.println("MQTT Ingestion: Broker connection lost!");
+                        System.err.println("[MQTT INGESTION] Connection lost to broker. Automatic reconnect triggered...");
                     }
 
                     @Override
@@ -86,12 +89,11 @@ public class MqttIngestionEngine {
                     public void deliveryComplete(IMqttDeliveryToken token) {}
                 });
 
-                System.out.println("MQTT Ingestion: Initiating connection to " + brokerUrl);
                 client.connect(options);
                 break;
 
             } catch (MqttException e) {
-                System.err.println("MQTT Ingestion: Broker unreachable: " + e.getMessage() + ". Retrying in 5 seconds...");
+                System.err.println("[MQTT INGESTION] Connection failed: " + e.getMessage() + ". Retrying in 5s...");
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException ie) {
@@ -101,34 +103,47 @@ public class MqttIngestionEngine {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void processPacket(String topic, MqttMessage message) {
         try {
             String[] parts = topic.split("/");
-            if (parts.length != 3) return;
+            if (parts.length != 3) {
+                System.out.println("[MQTT INGESTION] Ignored invalid topic structure: " + topic);
+                return;
+            }
 
             UUID deviceId = UUID.fromString(parts[2]);
             Map<String, Object> payload = objectMapper.readValue(message.getPayload(), new TypeReference<Map<String, Object>>() {});
 
-            if (payload == null || !payload.containsKey("ts") || !payload.containsKey("sensor_values")) return;
-
-            long ts = ((Number) payload.get("ts")).longValue();
-            Map<String, Object> sensorValues = (Map<String, Object>) payload.get("sensor_values");
-
-            if (!deviceRepository.existsById(deviceId)) {
-                System.out.println("MQTT Ingestion: Unknown device " + deviceId + ", dropping packet.");
+            if (payload == null || !payload.containsKey("ts") || !payload.containsKey("temperature") || !payload.containsKey("humidity")) {
+                System.out.println("[MQTT INGESTION] Malformed payload structure on topic: " + topic);
                 return;
             }
 
-            String bucketDate = Instant.ofEpochMilli(ts).atZone(localZone).format(formatter);
-            ReadingKey key = new ReadingKey(deviceId, bucketDate, ts);
+            if (!deviceRepository.existsById(deviceId)) {
+                System.out.println("[MQTT INGESTION] Rejected telemetry. Device ID matching " + deviceId + " does not exist in local database.");
+                return;
+            }
+
+            long tsDevice = ((Number) payload.get("ts")).longValue();
+            float temperature = ((Number) payload.get("temperature")).floatValue();
+            float humidity = ((Number) payload.get("humidity")).floatValue();
+            
+            long tsReceive = System.currentTimeMillis();
+            String bucketDate = Instant.ofEpochMilli(tsReceive).atZone(localZone).format(formatter);
+
+            ReadingKey key = new ReadingKey(deviceId, bucketDate, tsDevice);
             Reading reading = new Reading();
             reading.setKey(key);
-            reading.setSensorValues(sensorValues);
+            reading.setTsReceive(tsReceive);
+            reading.setTemperature(temperature);
+            reading.setHumidity(humidity);
             
             readingRepository.save(reading);
+            
+            System.out.println("[MQTT INGESTION] [SAVED] Device: " + deviceId + " | Bucket: " + bucketDate + " | Temp: " + temperature + "°C | Humid: " + humidity + "%");
+            
         } catch (Exception e) {
-            System.err.println("MQTT Ingestion: Error processing message - " + e.getMessage());
+            System.err.println("[MQTT INGESTION] Processing Error: " + e.getMessage());
         }
     }
 
@@ -136,12 +151,11 @@ public class MqttIngestionEngine {
     public void cleanUpMqttResources() {
         if (client != null) {
             try {
-                if (client.isConnected()) {
-                    client.disconnect();
-                }
+                System.out.println("[MQTT INGESTION] Shutting down connection engine cleanly...");
+                if (client.isConnected()) client.disconnect();
                 client.close();
             } catch (MqttException e) {
-                System.err.println("Error closing MQTT Client: " + e.getMessage());
+                System.err.println("[MQTT INGESTION] Error closing resource hooks: " + e.getMessage());
             }
         }
     }

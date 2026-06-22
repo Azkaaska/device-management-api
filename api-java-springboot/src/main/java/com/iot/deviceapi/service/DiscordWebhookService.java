@@ -32,17 +32,20 @@ public class DiscordWebhookService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
+            // Refactored fields matching the new schema attributes
             Map<String, Object> embed = Map.of(
-                    "title", "New Device Registered",
+                    "title", "🆕 New IoT Device Registered",
                     "color", 3066993,
                     "fields", List.of(
-                            Map.of("name", "Device ID", "value", String.format("`%s`", device.getDeviceId().toString()), "inline", false),
-                            Map.of("name", "Name", "value", device.getDeviceName(), "inline", true),
-                            Map.of("name", "Type", "value", String.format("`%s`", device.getDeviceType()), "inline", true)
+                            Map.of("name", "Device ID", "value", device.getId().toString(), "inline", false),
+                            Map.of("name", "Name", "value", device.getName(), "inline", true),
+                            Map.of("name", "Type", "value", device.getType(), "inline", true),
+                            Map.of("name", "Initial Status", "value", device.getStatus(), "inline", true)
                     )
             );
 
             Map<String, Object> payload = Map.of(
+                    "username", "IoT Registry Bot",
                     "embeds", List.of(embed)
             );
 

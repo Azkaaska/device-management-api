@@ -18,13 +18,14 @@ public class MqttEmulator {
     private static final Queue<BufferedPacket> offlineBuffer = new ConcurrentLinkedQueue<>();
     private static final int MAX_BUFFER_SIZE = 5000;
 
+    // Configured with three normal thermometer instances across locations
     private static final List<Map<String, String>> DEVICES = Arrays.asList(
         createDevice("550e8400-e29b-41d4-a716-446655440001", "thermometer",
-                     "buildingA/floor2/550e8400-e29b-41d4-a716-446655440001"),
-        createDevice("550e8400-e29b-41d4-a716-446655440002", "energymeter",
-                     "plantB/chiller4/550e8400-e29b-41d4-a716-446655440002"),
-        createDevice("550e8400-e29b-41d4-a716-446655440003", "waterflow",
-                     "plantB/coolingTower/550e8400-e29b-41d4-a716-446655440003")
+                     "buildingA/floor1/550e8400-e29b-41d4-a716-446655440001"),
+        createDevice("550e8400-e29b-41d4-a716-446655440002", "thermometer",
+                     "buildingA/floor2/550e8400-e29b-41d4-a716-446655440002"),
+        createDevice("550e8400-e29b-41d4-a716-446655440003", "thermometer",
+                     "buildingA/floor3/550e8400-e29b-41d4-a716-446655440003")
     );
 
     private static class BufferedPacket {
@@ -58,8 +59,6 @@ public class MqttEmulator {
             }
 
             Random random = new Random();
-            double energyAccumulated = random.nextDouble() * 40.0;
-            double waterVolumeAccumulated = random.nextDouble() * 400.0;
 
             while (true) {
                 long ts = System.currentTimeMillis();
@@ -83,30 +82,11 @@ public class MqttEmulator {
                     String deviceType = device.get("deviceType");
                     String topic = device.get("topic");
 
-                    Map<String, Object> sensorValues = new HashMap<>();
-
-                    if ("thermometer".equals(deviceType)) {
-                        sensorValues.put("temperature", Math.round((random.nextDouble() * 15 + 20) * 100.0) / 100.0);
-                        sensorValues.put("humidity",    Math.round((random.nextDouble() * 40 + 40) * 100.0) / 100.0);
-                    } else if ("energymeter".equals(deviceType)) {
-                        double voltage     = Math.round((random.nextDouble() * 20 + 220) * 10.0) / 10.0;
-                        double current     = Math.round((random.nextDouble() * 7.5 + 0.5) * 100.0) / 100.0;
-                        double activePower = Math.round(((voltage * current * 0.9) / 1000.0) * 1000.0) / 1000.0;
-                        energyAccumulated += activePower * (2.0 / 3600.0);
-                        sensorValues.put("voltage",      voltage);
-                        sensorValues.put("current",      current);
-                        sensorValues.put("active_power", activePower);
-                        sensorValues.put("total_energy", Math.round(energyAccumulated * 10000.0) / 10000.0);
-                    } else if ("waterflow".equals(deviceType)) {
-                        double flowRate = Math.round((random.nextDouble() * 20 + 5) * 100.0) / 100.0;
-                        waterVolumeAccumulated += flowRate * (2.0 / 60.0);
-                        sensorValues.put("flow_rate",    flowRate);
-                        sensorValues.put("total_volume", Math.round(waterVolumeAccumulated * 100.0) / 100.0);
-                    }
-
+                    // Flattened JSON payload generation to match simplified schema
                     Map<String, Object> payload = new LinkedHashMap<>();
                     payload.put("ts", ts);
-                    payload.put("sensor_values", sensorValues);
+                    payload.put("temperature", Math.round((random.nextDouble() * 15 + 20) * 100.0) / 100.0);
+                    payload.put("humidity",    Math.round((random.nextDouble() * 40 + 40) * 100.0) / 100.0);
 
                     String jsonPayload;
                     try {

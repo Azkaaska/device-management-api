@@ -2,101 +2,57 @@ package com.iot.deviceapi.model;
 
 import jakarta.persistence.*;
 import java.util.UUID;
-import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(
-    name = "devices",
-    indexes = {
-        @Index(name = "idx_devices_type",        columnList = "device_type"),
-        @Index(name = "idx_devices_status_type", columnList = "status, device_type")
-    }
-)
-@Schema(description = "IoT Device metadata")
+@Table(name = "devices")
+@Schema(description = "IoT Device metadata simplified schema")
 public class Device {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "device_id", updatable = false, nullable = false)
-    @JsonProperty("device_id")
+    @Column(name = "id")
+    @JsonProperty("id")
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "550e8400-e29b-41d4-a716-446655440000")
-    private UUID deviceId;
+    private UUID id;
 
-    @Column(name = "device_name", nullable = false, length = 100)
-    @JsonProperty("device_name")
+    @Column(name = "name", nullable = false, length = 100)
+    @JsonProperty("name")
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "Sensor Suhu Ruang Server")
-    private String deviceName;
+    private String name;
 
-    @Column(name = "device_type", nullable = false, length = 50)
-    @JsonProperty("device_type")
+    @Column(name = "type", nullable = false, length = 50)
+    @JsonProperty("type")
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "Thermometer")
-    private String deviceType;
+    private String type;
 
-    @Column(name = "status", nullable = false, length = 20)
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, defaultValue = "ACTIVE", example = "ACTIVE")
-    private String status = "ACTIVE";
+    @Column(nullable = false, length = 20)
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, defaultValue = "active", example = "active")
+    private String status = "active";
 
-    @Column(name = "firmware_version", length = 20)
-    @JsonProperty("firmware_version")
-    @Schema(example = "v2.1.0")
-    private String firmwareVersion;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "device_metadata", columnDefinition = "jsonb")
-    @JsonProperty("device_metadata")
-    @Schema(example = "{\"floor\": 3, \"room\": \"301\"}")
-    private Map<String, Object> deviceMetadata;
-
-    @Column(name = "created_at", nullable = false)
-    @JsonProperty("created_at")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "1780894449946")
-    private Long createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    @JsonProperty("updated_at")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "1780894449946")
-    private Long updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        long now = System.currentTimeMillis();
-        if (this.createdAt == null) {
-            this.createdAt = now;
-        }
-        this.updatedAt = now;
+    public UUID getId() {
+        return id;
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = System.currentTimeMillis();
+    public void setId(UUID id) {
+        this.id = id;
     }
 
-    public UUID getDeviceId() {
-        return deviceId;
+    public String getName() {
+        return name;
     }
 
-    public void setDeviceId(UUID deviceId) {
-        this.deviceId = deviceId;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public String getDeviceName() {
-        return deviceName;
+    public String getType() {
+        return type;
     }
 
-    public void setDeviceName(String deviceName) {
-        this.deviceName = deviceName;
-    }
-
-    public String getDeviceType() {
-        return deviceType;
-    }
-
-    public void setDeviceType(String deviceType) {
-        this.deviceType = deviceType;
+    public void setType(String type) {
+        this.type = type;
     }
 
     public String getStatus() {
@@ -105,37 +61,5 @@ public class Device {
 
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public String getFirmwareVersion() {
-        return firmwareVersion;
-    }
-
-    public void setFirmwareVersion(String firmwareVersion) {
-        this.firmwareVersion = firmwareVersion;
-    }
-
-    public Map<String, Object> getDeviceMetadata() {
-        return deviceMetadata;
-    }
-
-    public void setDeviceMetadata(Map<String, Object> deviceMetadata) {
-        this.deviceMetadata = deviceMetadata;
-    }
-
-    public Long getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Long createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Long getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(Long updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

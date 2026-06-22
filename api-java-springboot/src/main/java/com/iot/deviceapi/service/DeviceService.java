@@ -45,11 +45,9 @@ public class DeviceService {
     public Device createDevice(DeviceInput input) {
         validateInput(input);
         Device device = new Device();
-        device.setDeviceName(input.getDeviceName());
-        device.setDeviceType(input.getDeviceType());
-        device.setStatus(input.getStatus() != null ? input.getStatus() : "ACTIVE");
-        device.setFirmwareVersion(input.getFirmwareVersion());
-        device.setDeviceMetadata(input.getDeviceMetadata());
+        device.setName(input.getName());
+        device.setType(input.getType());
+        device.setStatus(input.getStatus() != null ? input.getStatus() : "active");
         
         Device savedDevice = deviceRepository.save(device);
         discordWebhookService.sendDeviceCreatedNotification(savedDevice);
@@ -60,25 +58,26 @@ public class DeviceService {
     public Device updateDevice(UUID id, DeviceInput input) {
         validateInput(input);
         Device device = getDeviceById(id);
-        device.setDeviceName(input.getDeviceName());
-        device.setDeviceType(input.getDeviceType());
+        device.setName(input.getName());
+        device.setType(input.getType());
         if (input.getStatus() != null) {
             device.setStatus(input.getStatus());
         }
-        device.setFirmwareVersion(input.getFirmwareVersion());
-        device.setDeviceMetadata(input.getDeviceMetadata());
         return deviceRepository.save(device);
     }
 
     public void softDeleteDevice(UUID id) {
         Device device = getDeviceById(id);
-        device.setStatus("INACTIVE");
+        device.setStatus("inactive");
         deviceRepository.save(device);
     }
 
     private void validateInput(DeviceInput input) {
-        if (input.getDeviceName() == null || input.getDeviceName().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "device_name is required");
+        if (input.getName() == null || input.getName().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");
+        }
+        if (input.getType() == null || input.getType().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "type is required");
         }
     }
 }
