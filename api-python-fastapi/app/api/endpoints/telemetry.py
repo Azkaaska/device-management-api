@@ -7,6 +7,7 @@ from app.api import deps
 from app.models.device import Device
 from app.models.reading import Reading
 from app.schemas import reading as reading_schemas
+from app.core.websocket_manager import manager
 
 router = APIRouter(prefix="/devices", tags=["Telemetry"])
 
@@ -41,7 +42,7 @@ def read_telemetry(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @router.post("/{device_id}/telemetry", response_model=reading_schemas.Reading, status_code=status.HTTP_201_CREATED, summary="Push telemetry to a device")
-def create_telemetry(
+async def create_telemetry(
     device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")],
     telemetry: reading_schemas.ReadingInput,
     db: Session = Depends(deps.get_db)
@@ -51,7 +52,12 @@ def create_telemetry(
         if device_exists is None:
             raise HTTPException(status_code=404, detail="Device not found")
 
-        return Reading.save(device_id, telemetry.ts, telemetry.temperature, telemetry.humidity)
+        saved_reading = Reading.save(device_id, telemetry.ts, telemetry.temperature, telemetry.humidity)
+        
+        broadcast_payload = {**saved_reading, "device_id": str(device_id)}
+        await manager.broadcast(device_id, broadcast_payload)
+        
+        return saved_reading
     except HTTPException:
         raise
     except Exception as e:

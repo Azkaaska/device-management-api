@@ -6,6 +6,7 @@ from app.config import settings
 from app.core.postgres_db import SessionLocal
 from app.models.device import Device
 from app.models.reading import Reading
+from app.core.websocket_manager import manager
 
 class MQTTSubscriberWorker:
     def __init__(self):
@@ -52,8 +53,13 @@ class MQTTSubscriberWorker:
                         print(f"MQTT Ingestion: Unknown device {device_id}, skipping")
                         return
                     
-                    Reading.save(device_id, int(ts_device), float(temperature), float(humidity))
-                    print(f"MQTT Ingestion: Saved telemetry for device {device_id}")
+                    saved_reading = Reading.save(device_id, int(ts_device), float(temperature), float(humidity))
+                    
+                    # Convert UUID instances to standard strings to avoid JSON serialization drops
+                    broadcast_payload = {**saved_reading, "device_id": str(device_id)}
+                    manager.broadcast_sync(device_id, broadcast_payload)
+                    
+                    print(f"MQTT Ingestion: Saved and Broadcasted telemetry for device {device_id}")
             except Exception as e:
                 print(f"MQTT Ingestion Error: {e}")
 

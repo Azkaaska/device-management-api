@@ -1,28 +1,29 @@
+import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from pathlib import Path
+from uuid import UUID
+from typing import Optional
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.core.postgres_db import engine, Base
 from app.core.cassandra_db import cassandra_db
 from app.core.mqtt_worker import mqtt_worker
+from app.core.websocket_manager import manager
 from app.models.reading import Reading
 from app.api.router import api_router
 
+TEMPLATE_FILE = Path(__file__).resolve().parent / "app" / "templates" / "live_view.html"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup PostgreSQL Schemas
+    manager.set_loop(asyncio.get_running_loop())
     Base.metadata.create_all(bind=engine)
-    
-    # Secure Cassandra session context and configure structures
     cassandra_db.connect()
     Reading.init_table()
-    
-    # Initialize background safe non-blocking MQTT loop threads
     mqtt_worker.start()
-    
     yield
-    
-    # Tear down services upon worker shutdown gracefully
     mqtt_worker.stop()
     cassandra_db.close()
 
@@ -56,6 +57,25 @@ app = FastAPI(
 )
 
 app.include_router(api_router, prefix="/api/v1")
+
+@app.get("/", response_class=FileResponse, summary="Serve Live Telemetry Dashboard")
+def read_root():
+    if not TEMPLATE_FILE.exists():
+        print(TEMPLATE_FILE)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Dashboard template file footprint missing from server storage"
+        )
+    return FileResponse(TEMPLATE_FILE)
+
+@app.websocket("/api/ws")
+async def websocket_endpoint(websocket: WebSocket, device_id: Optional[UUID] = Query(None)):
+    await manager.connect(device_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(device_id, websocket)
 
 if __name__ == "__main__":
     import uvicorn

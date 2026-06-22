@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Sensor Telemetry Feed</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .metric-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .pulse-glow {
+            animation: pulse-border 1.5s infinite alternate;
+        }
+        @keyframes pulse-border {
+            0% { border-color: rgba(59, 130, 246, 0.2); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.2); }
+            100% { border-color: rgba(59, 130, 246, 0.8); box-shadow: 0 0 12px 2px rgba(59, 130, 246, 0.4); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <header class="border-b border-slate-800 pb-6 mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                    <span>📡 Live Telemetry Stream</span>
+                    <span id="connectionStatusBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Disconnected</span>
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">Real-time pipeline monitoring interface over secure WebSockets.</p>
+            </div>
+            
+            <div class="flex items-center gap-3 bg-slate-800/50 p-3 rounded-xl border border-slate-700/60">
+                <input type="text" id="deviceIdInput" placeholder="Device UUID (Optional)" 
+                    class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 w-64">
+                <button id="connectBtn" onclick="toggleConnection()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer">
+                    Connect
+                </button>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div id="tempCard" class="metric-card bg-slate-800/40 border border-slate-800 rounded-2xl p-6 flex items-center justify-between">
+                <div>
+                    <span class="text-sm font-medium text-slate-400 block uppercase tracking-wider">Ambient Temperature</span>
+                    <span id="tempValue" class="text-5xl font-black text-white tracking-tight block mt-2">--<span class="text-2xl text-slate-500 font-normal ml-1">°C</span></span>
+                </div>
+                <div class="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-3xl">🌡️</div>
+            </div>
+
+            <div id="humidCard" class="metric-card bg-slate-800/40 border border-slate-800 rounded-2xl p-6 flex items-center justify-between">
+                <div>
+                    <span class="text-sm font-medium text-slate-400 block uppercase tracking-wider">Relative Humidity</span>
+                    <span id="humidValue" class="text-5xl font-black text-white tracking-tight block mt-2">--<span class="text-2xl text-slate-500 font-normal ml-1">%</span></span>
+                </div>
+                <div class="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-3xl">💧</div>
+            </div>
+        </main>
+
+        <section class="bg-slate-800/40 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div class="border-b border-slate-800 bg-slate-800/60 px-6 py-4 flex items-center justify-between">
+                <h3 class="font-bold text-white tracking-wide">Live Feed Terminal Logs</h3>
+                <button onclick="clearLogs()" class="text-xs text-slate-400 hover:text-white transition-colors border border-slate-700 px-2.5 py-1 rounded-md bg-slate-900/50">Clear Logs</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-300">
+                    <thead class="bg-slate-900/40 text-xs text-slate-400 uppercase font-semibold border-b border-slate-800">
+                        <tr>
+                            <th class="px-6 py-3">Device UUID</th>
+                            <th class="px-6 py-3">Device Time (ts_device)</th>
+                            <th class="px-6 py-3">Server Time (ts_receive)</th>
+                            <th class="px-6 py-3 text-right">Temperature</th>
+                            <th class="px-6 py-3 text-right">Humidity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody" class="divide-y divide-slate-800/60 font-mono">
+                        <tr id="emptyRow">
+                            <td colspan="5" class="px-6 py-8 text-center text-slate-500 italic font-sans">No live active stream running. Connect above to view incoming data updates.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let socket = null;
+
+        function toggleConnection() {
+            const connectBtn = document.getElementById('connectBtn');
+            const deviceIdInput = document.getElementById('deviceIdInput');
+            const badge = document.getElementById('connectionStatusBadge');
+
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                // Disconnect logic
+                socket.close();
+                return;
+            }
+
+            // Establish connection logic
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const deviceId = deviceIdInput.value.trim();
+            
+            let wsUrl = `${protocol}//${host}/api/ws`;
+            if (deviceId) {
+                wsUrl += `?device_id=${encodeURIComponent(deviceId)}`;
+            }
+
+            badge.innerText = "Connecting...";
+            badge.className = "text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
+            connectBtn.disabled = true;
+
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                badge.innerText = "Connected";
+                badge.className = "text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                connectBtn.innerText = "Disconnect";
+                connectBtn.className = "bg-red-600 hover:bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer";
+                connectBtn.disabled = false;
+                deviceIdInput.disabled = true;
+                
+                document.getElementById('tempIdCard')?.classList.add('pulse-glow');
+                document.getElementById('humidCard')?.classList.add('pulse-glow');
+            };
+
+            socket.onmessage = (event) => {
+                const telemetry = JSON.parse(event.data);
+                updateDashboard(telemetry);
+            };
+
+            socket.onclose = () => {
+                badge.innerText = "Disconnected";
+                badge.className = "text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20";
+                connectBtn.innerText = "Connect";
+                connectBtn.className = "bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer";
+                connectBtn.disabled = false;
+                deviceIdInput.disabled = false;
+                
+                document.getElementById('tempCard').classList.remove('pulse-glow');
+                document.getElementById('humidCard').classList.remove('pulse-glow');
+                socket = null;
+            };
+
+            socket.onerror = (err) => {
+                console.error('WebSocket Exception encountered:', err);
+                socket.close();
+            };
+        }
+
+        function updateDashboard(data) {
+            // Update Card value text fields
+            document.getElementById('tempValue').innerHTML = `${data.temperature.toFixed(1)}<span class="text-2xl text-slate-500 font-normal ml-1">°C</span>`;
+            document.getElementById('humidValue').innerHTML = `${data.humidity.toFixed(1)}<span class="text-2xl text-slate-500 font-normal ml-1">%</span>`;
+
+            // Append row to the log table
+            const tableBody = document.getElementById('logTableBody');
+            const emptyRow = document.getElementById('emptyRow');
+            if (emptyRow) emptyRow.remove();
+
+            const row = document.createElement('tr');
+            row.className = "hover:bg-slate-800/20 transition-colors";
+            
+            const timeDevice = formatLocalTime(data.ts_device);
+            const timeReceive = formatLocalTime(data.ts_receive);
+
+            row.innerHTML = `
+                <td class="px-6 py-3 font-semibold text-slate-400 text-xs">${data.device_id}</td>
+                <td class="px-6 py-3 text-slate-400">${timeDevice}</td>
+                <td class="px-6 py-3 text-slate-500">${timeReceive}</td>
+                <td class="px-6 py-3 text-right font-bold text-orange-400">${data.temperature.toFixed(1)} °C</td>
+                <td class="px-6 py-3 text-right font-bold text-blue-400">${data.humidity.toFixed(1)} %</td>
+            `;
+
+            // Keep latest log updates on top
+            tableBody.insertBefore(row, tableBody.firstChild);
+
+            // Cap the terminal buffer size to 25 items maximum
+            if (tableBody.children.length > 25) {
+                tableBody.removeChild(tableBody.lastChild);
+            }
+        }
+
+        function clearLogs() {
+            const tableBody = document.getElementById('logTableBody');
+            tableBody.innerHTML = `
+                <tr id="emptyRow">
+                    <td colspan="5" class="px-6 py-8 text-center text-slate-500 italic font-sans">No live active stream running. Connect above to view incoming data updates.</td>
+                </tr>
+            `;
+            document.getElementById('tempValue').innerHTML = `--<span class="text-2xl text-slate-500 font-normal ml-1">°C</span>`;
+            document.getElementById('humidValue').innerHTML = `--<span class="text-2xl text-slate-500 font-normal ml-1">%</span>`;
+        }
+
+        function formatLocalTime(timestamp) {
+            const d = new Date(timestamp);
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            const ss = String(d.getSeconds()).padStart(2, '0');
+            const ms = String(d.getMilliseconds()).padStart(3, '0');
+            return `${hh}:${mm}:${ss}.${ms}`;
+        }
+    </script>
+</body>
+</html>
