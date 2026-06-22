@@ -3,6 +3,8 @@ package com.iot.deviceapi.service;
 import com.iot.deviceapi.model.Device;
 import com.iot.deviceapi.model.DeviceInput;
 import com.iot.deviceapi.repository.DeviceRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,14 +18,17 @@ import java.util.UUID;
 public class DeviceService {
 
     private final DeviceRepository deviceRepository;
+    private final DiscordWebhookService discordWebhookService;
 
-    public DeviceService(DeviceRepository deviceRepository) {
+    public DeviceService(DeviceRepository deviceRepository, DiscordWebhookService discordWebhookService) {
         this.deviceRepository = deviceRepository;
+        this.discordWebhookService = discordWebhookService;
     }
 
     @Transactional(readOnly = true)
-    public List<Device> getAllDevices() {
-        return deviceRepository.findAll();
+    public List<Device> getAllDevices(int page, int limit) {
+        Pageable pageable = PageRequest.of(page, limit);
+        return deviceRepository.findAll(pageable).getContent();
     }
 
     @Transactional(readOnly = true)
@@ -45,7 +50,11 @@ public class DeviceService {
         device.setStatus(input.getStatus() != null ? input.getStatus() : "ACTIVE");
         device.setFirmwareVersion(input.getFirmwareVersion());
         device.setDeviceMetadata(input.getDeviceMetadata());
-        return deviceRepository.save(device);
+        
+        Device savedDevice = deviceRepository.save(device);
+        discordWebhookService.sendDeviceCreatedNotification(savedDevice);
+
+        return savedDevice;
     }
 
     public Device updateDevice(UUID id, DeviceInput input) {

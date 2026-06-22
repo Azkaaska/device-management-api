@@ -23,9 +23,11 @@ public class DeviceController {
     }
 
     @GetMapping
-    @Operation(summary = "Retrieve a list of devices")
-    public List<Device> getAllDevices() {
-        return deviceService.getAllDevices();
+    @Operation(summary = "Retrieve a paginated list of devices")
+    public List<Device> getAllDevices(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "limit", defaultValue = "20") int limit) {
+        return deviceService.getAllDevices(page, limit);
     }
 
     @PostMapping
@@ -37,20 +39,20 @@ public class DeviceController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get a device by ID")
-    public Device getDevice(@PathVariable("id") UUID id) {
+    public Device getDevice(@PathVariable UUID id) {
         return deviceService.getDeviceById(id);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a device")
-    public Device updateDevice(@PathVariable("id") UUID id, @RequestBody DeviceInput input) {
+    public Device updateDevice(@PathVariable UUID id, @RequestBody DeviceInput input) {
         return deviceService.updateDevice(id, input);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete a device (Soft Delete)")
-    public void deleteDevice(@PathVariable("id") UUID id) {
+    public void deleteDevice(@PathVariable UUID id) {
         deviceService.softDeleteDevice(id);
     }
 }

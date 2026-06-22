@@ -30,7 +30,6 @@ public class TelemetryService {
     }
 
     public Reading pushTelemetry(UUID id, ReadingInput input) {
-        // Enforce constraint check across technical layers
         deviceService.getDeviceById(id);
 
         long ts = System.currentTimeMillis();
@@ -58,7 +57,7 @@ public class TelemetryService {
         return null;
     }
 
-    public List<Reading> getHistoricalReadings(UUID deviceId, Long startTime, Long endTime) {
+    public List<Reading> getHistoricalReadings(UUID deviceId, Long startTime, Long endTime, int page, int limit) {
         ZonedDateTime startLocal = Instant.ofEpochMilli(startTime).atZone(localZone);
         ZonedDateTime endLocal = Instant.ofEpochMilli(endTime).atZone(localZone);
 
@@ -66,6 +65,7 @@ public class TelemetryService {
         LocalDate start = startLocal.toLocalDate();
         LocalDate end = endLocal.toLocalDate();
 
+        // 1. Gather all data across the calculated date buckets
         for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
             String bucket = date.format(formatter);
             List<Reading> list = readingRepository.findByDeviceAndBucketAndTsRange(deviceId, bucket, startTime, endTime);
@@ -74,7 +74,16 @@ public class TelemetryService {
             }
         }
 
+        // 2. Sort total combined results descending chronologically
         allReadings.sort((a, b) -> b.getTs().compareTo(a.getTs()));
-        return allReadings;
+
+        // 3. Compute target sublist slice indices based on request params
+        int fromIndex = page * limit;
+        if (fromIndex >= allReadings.size()) {
+            return new ArrayList<>(); // Return empty array if page index drifts completely out of bounds
+        }
+        int toIndex = Math.min(fromIndex + limit, allReadings.size());
+
+        return allReadings.subList(fromIndex, toIndex);
     }
 }
