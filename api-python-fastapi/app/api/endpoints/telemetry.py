@@ -13,14 +13,14 @@ router = APIRouter(prefix="/devices", tags=["Telemetry"])
 @router.get("/{device_id}/telemetry", response_model=Any, summary="Get telemetry for a device")
 def read_telemetry(
     device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")],
-    start_time: Optional[int] = Query(default=None, example=1780894449000),
-    end_time: Optional[int] = Query(default=None, example=1780894450000),
+    start_time: Optional[int] = Query(default=None, example=1717488000000),
+    end_time: Optional[int] = Query(default=None, example=1717488005000),
     page: int = Query(default=1, ge=1, description="The page number to retrieve (1-indexed)"),
     limit: int = Query(default=100, ge=1, le=500, description="The maximum number of telemetry items to return per page"),
     db: Session = Depends(deps.get_db)
 ):
     try:
-        device_exists = db.query(Device.device_id).filter(Device.device_id == device_id).first()
+        device_exists = db.query(Device.id).filter(Device.id == device_id).first()
         if device_exists is None:
             raise HTTPException(status_code=404, detail="Device not found")
 
@@ -47,13 +47,12 @@ def create_telemetry(
     db: Session = Depends(deps.get_db)
 ):
     try:
-        device_exists = db.query(Device.device_id).filter(Device.device_id == device_id).first()
+        device_exists = db.query(Device.id).filter(Device.id == device_id).first()
         if device_exists is None:
             raise HTTPException(status_code=404, detail="Device not found")
 
-        return Reading.save(device_id, telemetry.sensor_values)
+        return Reading.save(device_id, telemetry.ts, telemetry.temperature, telemetry.humidity)
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    

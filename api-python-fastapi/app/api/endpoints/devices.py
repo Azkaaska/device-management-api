@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from typing import List, Annotated
@@ -26,16 +26,14 @@ def read_devices(
 @router.post("/", response_model=device_schemas.Device, status_code=status.HTTP_201_CREATED, summary="Create a new device")
 def create_device(
     device: device_schemas.DeviceInput, 
-    background_tasks: BackgroundTasks, 
+    background_tasks: BackgroundTasks,
     db: Session = Depends(deps.get_db)
 ):
     try:
         db_device = Device(
-            device_name=device.device_name,
-            device_type=device.device_type,
-            status=device.status if device.status else "ACTIVE",
-            firmware_version=device.firmware_version,
-            device_metadata=device.device_metadata
+            name=device.name,
+            type=device.type,
+            status=device.status if device.status else "active"
         )
         db.add(db_device)
         db.commit()
@@ -43,9 +41,9 @@ def create_device(
         
         background_tasks.add_task(
             notify_device_creation,
-            str(db_device.device_id),
-            db_device.device_name,
-            db_device.device_type
+            str(db_device.id),
+            db_device.name,
+            db_device.type
         )
         
         return db_device
@@ -59,7 +57,7 @@ def create_device(
 @router.get("/{device_id}", response_model=device_schemas.Device, summary="Get a device by ID")
 def read_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(deps.get_db)):
     try:
-        device = db.query(Device).filter(Device.device_id == device_id).first()
+        device = db.query(Device).filter(Device.id == device_id).first()
         if device is None:
             raise HTTPException(status_code=404, detail="Device not found")
         return device
@@ -71,16 +69,14 @@ def read_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716
 @router.put("/{device_id}", response_model=device_schemas.Device, summary="Update a device")
 def update_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], device: device_schemas.DeviceInput, db: Session = Depends(deps.get_db)):
     try:
-        db_device = db.query(Device).filter(Device.device_id == device_id).first()
+        db_device = db.query(Device).filter(Device.id == device_id).first()
         if db_device is None:
             raise HTTPException(status_code=404, detail="Device not found")
 
-        db_device.device_name = device.device_name
-        db_device.device_type = device.device_type
+        db_device.name = device.name
+        db_device.type = device.type
         if device.status is not None:
             db_device.status = device.status
-        db_device.firmware_version = device.firmware_version
-        db_device.device_metadata = device.device_metadata
 
         db.commit()
         db.refresh(db_device)
@@ -97,11 +93,11 @@ def update_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a7
 @router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a device (Soft Delete)")
 def delete_device(device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")], db: Session = Depends(deps.get_db)):
     try:
-        db_device = db.query(Device).filter(Device.device_id == device_id).first()
+        db_device = db.query(Device).filter(Device.id == device_id).first()
         if db_device is None:
             raise HTTPException(status_code=404, detail="Device not found")
 
-        db_device.status = "INACTIVE"
+        db_device.status = "inactive"
         db.commit()
         return None
     except HTTPException:

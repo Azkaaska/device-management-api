@@ -15,7 +15,7 @@ class MQTTSubscriberWorker:
         def on_connect(client, userdata, flags, rc, properties=None):
             if rc == 0:
                 print(f"MQTT Ingestion: Connected to broker {settings.MQTT_HOST}:{settings.MQTT_PORT}")
-                client.subscribe("+/+/+")
+                client.subscribe("buildingA/+/+")
             else:
                 print(f"MQTT Ingestion: Connection failed with code {rc}")
 
@@ -38,20 +38,21 @@ class MQTTSubscriberWorker:
                     print(f"MQTT Ingestion: Corrupted/Non-JSON payload received on {msg.topic}")
                     return
                 
-                ts = payload.get("ts")
-                sensor_values = payload.get("sensor_values")
+                ts_device = payload.get("ts")
+                temperature = payload.get("temperature")
+                humidity = payload.get("humidity")
                 
-                if ts is None or sensor_values is None:
-                    print(f"MQTT Ingestion: Missing 'ts' or 'sensor_values' in payload")
+                if ts_device is None or temperature is None or humidity is None:
+                    print(f"MQTT Ingestion: Missing required metrics in payload structure")
                     return
                 
                 with SessionLocal() as db:
-                    device = db.query(Device).filter(Device.device_id == device_id).first()
+                    device = db.query(Device).filter(Device.id == device_id).first()
                     if not device:
                         print(f"MQTT Ingestion: Unknown device {device_id}, skipping")
                         return
                     
-                    Reading.save(device_id, sensor_values, ts)
+                    Reading.save(device_id, int(ts_device), float(temperature), float(humidity))
                     print(f"MQTT Ingestion: Saved telemetry for device {device_id}")
             except Exception as e:
                 print(f"MQTT Ingestion Error: {e}")
