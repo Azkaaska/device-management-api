@@ -112,7 +112,7 @@ public class MqttEmulator {
                     }
                 }
 
-                Thread.sleep(2000);
+                Thread.sleep(5000);
             }
         } catch (Exception e) {
             System.err.println("Emulator execution failed: " + e.getMessage());

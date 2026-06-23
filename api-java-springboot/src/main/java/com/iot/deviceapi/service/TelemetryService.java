@@ -1,5 +1,7 @@
 package com.iot.deviceapi.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.iot.deviceapi.handler.SensorWebSocketHandler;
 import com.iot.deviceapi.model.Reading;
 import com.iot.deviceapi.model.ReadingInput;
 import com.iot.deviceapi.model.ReadingKey;
@@ -20,13 +22,16 @@ public class TelemetryService {
 
     private final ReadingRepository readingRepository;
     private final DeviceService deviceService;
+    private final SensorWebSocketHandler webSocketHandler;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private final ZoneId localZone = ZoneId.of("GMT+7");
 
-    public TelemetryService(ReadingRepository readingRepository, DeviceService deviceService) {
+    public TelemetryService(ReadingRepository readingRepository, DeviceService deviceService, SensorWebSocketHandler webSocketHandler) {
         this.readingRepository = readingRepository;
         this.deviceService = deviceService;
+        this.webSocketHandler = webSocketHandler;
     }
 
     public Reading pushTelemetry(UUID id, ReadingInput input) {
@@ -43,7 +48,17 @@ public class TelemetryService {
         reading.setTemperature(input.getTemperature());
         reading.setHumidity(input.getHumidity());
 
-        return readingRepository.save(reading);
+        Reading savedReading = readingRepository.save(reading);
+
+        // Also stream HTTP API pushed telemetry to the live web interface
+        try {
+            String wsPayload = objectMapper.writeValueAsString(savedReading);
+            webSocketHandler.broadcast(id, wsPayload);
+        } catch (Exception e) {
+            System.err.println("[TELEMETRY SERVICE] WS Broadcast Error: " + e.getMessage());
+        }
+
+        return savedReading;
     }
 
     public Reading getLatestReading(UUID deviceId) {

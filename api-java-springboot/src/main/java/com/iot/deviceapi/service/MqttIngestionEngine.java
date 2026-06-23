@@ -2,6 +2,7 @@ package com.iot.deviceapi.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.iot.deviceapi.handler.SensorWebSocketHandler;
 import com.iot.deviceapi.model.Reading;
 import com.iot.deviceapi.model.ReadingKey;
 import com.iot.deviceapi.repository.DeviceRepository;
@@ -30,6 +31,7 @@ public class MqttIngestionEngine {
 
     private final DeviceRepository deviceRepository;
     private final ReadingRepository readingRepository;
+    private final SensorWebSocketHandler webSocketHandler;
     
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -37,9 +39,10 @@ public class MqttIngestionEngine {
     
     private MqttClient client;
 
-    public MqttIngestionEngine(DeviceRepository deviceRepository, ReadingRepository readingRepository) {
+    public MqttIngestionEngine(DeviceRepository deviceRepository, ReadingRepository readingRepository, SensorWebSocketHandler webSocketHandler) {
         this.deviceRepository = deviceRepository;
         this.readingRepository = readingRepository;
+        this.webSocketHandler = webSocketHandler;
     }
 
     @PostConstruct
@@ -68,8 +71,8 @@ public class MqttIngestionEngine {
                         String status = reconnect ? "Reconnected" : "Connected";
                         System.out.println("[MQTT INGESTION] " + status + " to broker: " + serverURI);
                         try {
-                            client.subscribe("buildingA/+/+", 1);
-                            System.out.println("[MQTT INGESTION] Successfully subscribed to topic: buildingA/+/+");
+                            client.subscribe("+/+/+", 1);
+                            System.out.println("[MQTT INGESTION] Successfully subscribed to wildcard topic: +/+/+");
                         } catch (MqttException e) {
                             System.err.println("[MQTT INGESTION] Subscription failed: " + e.getMessage());
                         }
@@ -139,8 +142,11 @@ public class MqttIngestionEngine {
             reading.setHumidity(humidity);
             
             readingRepository.save(reading);
-            
             System.out.println("[MQTT INGESTION] [SAVED] Device: " + deviceId + " | Bucket: " + bucketDate + " | Temp: " + temperature + "°C | Humid: " + humidity + "%");
+            
+            // Stream out directly to live frontend client connections (filtered by device)
+            String wsPayload = objectMapper.writeValueAsString(reading);
+            webSocketHandler.broadcast(deviceId, wsPayload);
             
         } catch (Exception e) {
             System.err.println("[MQTT INGESTION] Processing Error: " + e.getMessage());
