@@ -16,9 +16,18 @@
             0% { border-color: rgba(59, 130, 246, 0.2); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.2); }
             100% { border-color: rgba(59, 130, 246, 0.8); box-shadow: 0 0 12px 2px rgba(59, 130, 246, 0.4); }
         }
+        .pulse-alert {
+            animation: alert-border 0.5s infinite alternate;
+        }
+        @keyframes alert-border {
+            0% { border-color: rgba(239, 68, 68, 0.4); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
+            100% { border-color: rgba(239, 68, 68, 1); box-shadow: 0 0 16px 3px rgba(239, 68, 68, 0.5); }
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans relative">
+
+    <div id="alertContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-md w-full px-4 sm:px-0"></div>
 
     <div class="max-w-6xl mx-auto px-4 py-8">
         <header class="border-b border-slate-800 pb-6 mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -45,7 +54,7 @@
                     <span class="text-sm font-medium text-slate-400 block uppercase tracking-wider">Ambient Temperature</span>
                     <span id="tempValue" class="text-5xl font-black text-white tracking-tight block mt-2">--<span class="text-2xl text-slate-500 font-normal ml-1">°C</span></span>
                 </div>
-                <div class="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-3xl">🌡️</div>
+                <div id="tempIconBox" class="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-3xl transition-colors duration-300">Target🌡️</div>
             </div>
 
             <div id="humidCard" class="metric-card bg-slate-800/40 border border-slate-800 rounded-2xl p-6 flex items-center justify-between">
@@ -92,12 +101,10 @@
             const badge = document.getElementById('connectionStatusBadge');
 
             if (socket && socket.readyState === WebSocket.OPEN) {
-                // Disconnect logic
                 socket.close();
                 return;
             }
 
-            // Establish connection logic
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
             const deviceId = deviceIdInput.value.trim();
@@ -121,13 +128,22 @@
                 connectBtn.disabled = false;
                 deviceIdInput.disabled = true;
                 
-                document.getElementById('tempIdCard')?.classList.add('pulse-glow');
+                document.getElementById('tempCard')?.classList.add('pulse-glow');
                 document.getElementById('humidCard')?.classList.add('pulse-glow');
             };
 
             socket.onmessage = (event) => {
-                const telemetry = JSON.parse(event.data);
-                updateDashboard(telemetry);
+                try {
+                    const eventWrapper = JSON.parse(event.data);
+                    
+                    if (eventWrapper.type === "ALERT") {
+                        triggerVisualAlert(eventWrapper.payload);
+                    } else { // type = "READING"
+                        updateDashboard(eventWrapper.payload);
+                    }
+                } catch (err) {
+                    console.error("Failed to safely parse inbound socket frame:", err);
+                }
             };
 
             socket.onclose = () => {
@@ -138,8 +154,16 @@
                 connectBtn.disabled = false;
                 deviceIdInput.disabled = false;
                 
-                document.getElementById('tempCard').classList.remove('pulse-glow');
-                document.getElementById('humidCard').classList.remove('pulse-glow');
+                // Bersihkan efek animasi pulse
+                const tempCard = document.getElementById('tempCard');
+                const tempIconBox = document.getElementById('tempIconBox');
+                if (tempCard) {
+                    tempCard.className = "metric-card bg-slate-800/40 border border-slate-800 rounded-2xl p-6 flex items-center justify-between";
+                }
+                if (tempIconBox) {
+                    tempIconBox.className = "p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-3xl";
+                }
+                document.getElementById('humidCard')?.classList.remove('pulse-glow');
                 socket = null;
             };
 
@@ -149,12 +173,35 @@
             };
         }
 
-        function updateDashboard(data) {
-            // Update Card value text fields
-            document.getElementById('tempValue').innerHTML = `${data.temperature.toFixed(1)}<span class="text-2xl text-slate-500 font-normal ml-1">°C</span>`;
-            document.getElementById('humidValue').innerHTML = `${data.humidity.toFixed(1)}<span class="text-2xl text-slate-500 font-normal ml-1">%</span>`;
+        function updateDashboard(payload) {
+            if (!payload) return;
 
-            // Append row to the log table
+            // Resolusi variabel adaptif untuk mendukung struktur nested primary key Cassandra (ReadingKey)
+            const temperature = typeof payload.temperature === 'number' ? payload.temperature : 0;
+            const humidity = typeof payload.humidity === 'number' ? payload.humidity : 0;
+            
+            const deviceId = payload.deviceId || (payload.key ? payload.key.deviceId : 'Unknown');
+            const tsDevice = payload.tsDevice || (payload.key ? payload.key.tsDevice : Date.now());
+            const tsReceive = payload.tsReceive || Date.now();
+
+            // Kembalikan visual card temperature ke kondisi normal jika di bawah threshold overheat
+            if (temperature <= 35.0) {
+                const tempCard = document.getElementById('tempCard');
+                const tempIconBox = document.getElementById('tempIconBox');
+                if (tempCard && tempCard.classList.contains('pulse-alert')) {
+                    tempCard.classList.remove('pulse-alert');
+                    tempCard.classList.add('pulse-glow');
+                    if (tempIconBox) {
+                        tempIconBox.className = "p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-3xl";
+                    }
+                }
+            }
+
+            // Update nilai teks pada dashboard
+            document.getElementById('tempValue').innerHTML = `${temperature.toFixed(1)}<span class="text-2xl text-slate-500 font-normal ml-1">°C</span>`;
+            document.getElementById('humidValue').innerHTML = `${humidity.toFixed(1)}<span class="text-2xl text-slate-500 font-normal ml-1">%</span>`;
+
+            // Append baris ke tabel terminal log
             const tableBody = document.getElementById('logTableBody');
             const emptyRow = document.getElementById('emptyRow');
             if (emptyRow) emptyRow.remove();
@@ -162,24 +209,73 @@
             const row = document.createElement('tr');
             row.className = "hover:bg-slate-800/20 transition-colors";
             
-            const timeDevice = formatLocalTime(data.ts_device);
-            const timeReceive = formatLocalTime(data.ts_receive);
+            const timeDevice = formatLocalTime(tsDevice);
+            const timeReceive = formatLocalTime(tsReceive);
 
             row.innerHTML = `
-                <td class="px-6 py-3 font-semibold text-slate-400 text-xs">${data.device_id}</td>
+                <td class="px-6 py-3 font-semibold text-slate-400 text-xs">${deviceId}</td>
                 <td class="px-6 py-3 text-slate-400">${timeDevice}</td>
                 <td class="px-6 py-3 text-slate-500">${timeReceive}</td>
-                <td class="px-6 py-3 text-right font-bold text-orange-400">${data.temperature.toFixed(1)} °C</td>
-                <td class="px-6 py-3 text-right font-bold text-blue-400">${data.humidity.toFixed(1)} %</td>
+                <td class="px-6 py-3 text-right font-bold text-orange-400">${temperature.toFixed(1)} °C</td>
+                <td class="px-6 py-3 text-right font-bold text-blue-400">${humidity.toFixed(1)} %</td>
             `;
 
-            // Keep latest log updates on top
             tableBody.insertBefore(row, tableBody.firstChild);
 
-            // Cap the terminal buffer size to 25 items maximum
             if (tableBody.children.length > 25) {
                 tableBody.removeChild(tableBody.lastChild);
             }
+        }
+
+        function triggerVisualAlert(alertPayload) {
+            const tempCard = document.getElementById('tempCard');
+            const tempIconBox = document.getElementById('tempIconBox');
+            if (tempCard) {
+                tempCard.classList.remove('pulse-glow');
+                结构
+                tempCard.classList.add('pulse-alert');
+            }
+            if (tempIconBox) {
+                tempIconBox.className = "p-4 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 text-3xl animate-bounce";
+            }
+
+            const alertContainer = document.getElementById('alertContainer');
+            const toast = document.createElement('div');
+            
+            const toastId = 'toast-' + Math.random().toString(36).substr(2, 9);
+            toast.id = toastId;
+            
+            toast.className = "bg-slate-950 border-l-4 border-red-500 rounded-xl shadow-2xl p-4 flex gap-3 transform translate-y-4 opacity-0 transition-all duration-300 ease-out border border-slate-800/80";
+            
+            const localTime = formatLocalTime(Date.now());
+            
+            toast.innerHTML = `
+                <div class="text-red-500 text-xl font-bold">⚠️</div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-bold text-red-400 tracking-wider uppercase">System Critical Alert</span>
+                        <span class="text-[10px] font-mono text-slate-500">${localTime}</span>
+                    </div>
+                    <p class="text-sm font-semibold text-white mt-1">${alertPayload.message || 'CRITICAL OVERHEAT DETECTED!'}</p>
+                    <div class="text-xs text-slate-400 mt-2 font-mono space-y-0.5">
+                        <div><span class="text-slate-500">ID:</span> ${alertPayload.deviceId}</div>
+                        <div><span class="text-slate-500">Value:</span> <span class="text-red-400 font-bold">${alertPayload.value}°C</span></div>
+                    </div>
+                </div>
+            `;
+
+            alertContainer.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 6000);
         }
 
         function clearLogs() {

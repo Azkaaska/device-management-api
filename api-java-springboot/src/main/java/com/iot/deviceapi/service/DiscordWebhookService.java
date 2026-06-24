@@ -32,9 +32,8 @@ public class DiscordWebhookService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            // Refactored fields matching the new schema attributes
             Map<String, Object> embed = Map.of(
-                    "title", "🆕 New IoT Device Registered",
+                    "title", "New IoT Device Registered",
                     "color", 3066993,
                     "fields", List.of(
                             Map.of("name", "Device ID", "value", device.getId().toString(), "inline", false),
@@ -45,7 +44,6 @@ public class DiscordWebhookService {
             );
 
             Map<String, Object> payload = Map.of(
-                    "username", "IoT Registry Bot",
                     "embeds", List.of(embed)
             );
 
@@ -54,6 +52,33 @@ public class DiscordWebhookService {
 
         } catch (Exception e) {
             System.err.println("Discord Webhook Warning: Connection failed. Message: " + e.getMessage());
+        }
+    }
+
+    public void sendAlert(String message) {
+        if (discordWebhookUrl == null || discordWebhookUrl.isBlank()) {
+            return;
+        }
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> embed = Map.of(
+                    "title", "IoT System Exception Alert",
+                    "description", message,
+                    "color", 15158332
+            );
+
+            Map<String, Object> payload = Map.of(
+                    "embeds", List.of(embed)
+            );
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            restTemplate.postForEntity(discordWebhookUrl, request, String.class);
+
+        } catch (Exception e) {
+            System.err.println("Discord Critical Alert Drop: Webhook failed to dispatch. Message: " + e.getMessage());
         }
     }
 }
