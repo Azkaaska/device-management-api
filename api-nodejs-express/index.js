@@ -4,11 +4,11 @@ const YAML = require('yamljs');
 const path = require('path');
 const http = require('http');
 
-const { sequelize } = require('./models');
-const apiRouter = require('./routes');
-const errorHandler = require('./middlewares/errorHandler');
-const { bootstrapMqttWorker } = require('./workers/mqttIngestion');
-const { initWebSocketServer } = require('./services/websocketService');
+const { sequelize } = require('./src/models');
+const apiRouter = require('./src/routes');
+const errorHandler = require('./src/middlewares/errorHandler');
+const { bootstrapMqttWorker } = require('./src/workers/mqttIngestion');
+const { initWebSocketServer } = require('./src/services/websocketService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
