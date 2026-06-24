@@ -14,8 +14,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
     info = @Info(
-        title = "IoT Device & Telemetry API",
-        description = "API for managing IoT Devices and Telemetry",
+        title = "Dokumentasi API Manajemen Perangkat & Telemetri IoT",
+        description = "API untuk mengelola metadata perangkat IoT dan merekam data telemetri deret waktu (time-series).",
         version = "1.0.0"
     )
 )

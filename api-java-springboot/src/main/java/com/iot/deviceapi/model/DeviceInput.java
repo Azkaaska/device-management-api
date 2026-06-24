@@ -3,18 +3,19 @@ package com.iot.deviceapi.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "Input model for creating or updating a simplified device")
+@Schema(description = "Model input untuk membuat atau memperbarui data perangkat")
 public class DeviceInput {
 
     @JsonProperty("name")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "Sensor Suhu Ruang Server")
+    @Schema(description = "Nama perangkat IoT", requiredMode = Schema.RequiredMode.REQUIRED, example = "Sensor Suhu Ruang Server")
     private String name;
 
     @JsonProperty("type")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "Thermometer")
+    @Schema(description = "Tipe perangkat (misalnya, Thermometer, Barometer)", requiredMode = Schema.RequiredMode.REQUIRED, example = "Thermometer")
     private String type;
-
-    @Schema(defaultValue = "active", example = "active")
+    
+    @JsonProperty("status")
+    @Schema(description = "Status operasional perangkat", defaultValue = "active", example = "active")
     private String status = "active";
 
     public String getName() {

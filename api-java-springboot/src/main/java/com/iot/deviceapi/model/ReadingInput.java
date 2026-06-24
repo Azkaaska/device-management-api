@@ -3,19 +3,19 @@ package com.iot.deviceapi.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "Flat input payload from emulator device")
+@Schema(description = "Model input data telemetri yang dikirim oleh perangkat emulator")
 public class ReadingInput {
 
     @JsonProperty("ts")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "1717488000000")
+    @Schema(description = "Timestamp epoch milidetik pembacaan sensor pada perangkat", requiredMode = Schema.RequiredMode.REQUIRED, example = "1717488000000")
     private Long ts;
 
     @JsonProperty("temperature")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "28.5")
+    @Schema(description = "Nilai suhu yang dibaca oleh sensor (Celsius)", requiredMode = Schema.RequiredMode.REQUIRED, example = "28.5")
     private Float temperature;
 
     @JsonProperty("humidity")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "75.2")
+    @Schema(description = "Nilai kelembapan yang dibaca oleh sensor (Persen)", requiredMode = Schema.RequiredMode.REQUIRED, example = "75.2")
     private Float humidity;
 
     public Long getTs() {

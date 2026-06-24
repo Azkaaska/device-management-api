@@ -3,32 +3,36 @@ package com.iot.deviceapi.model;
 import jakarta.persistence.*;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Entity
 @Table(name = "devices")
-@Schema(description = "IoT Device metadata simplified schema")
+@Schema(description = "Skema metadata untuk Perangkat IoT")
+@JsonPropertyOrder({ "id", "name", "type", "status" })
 public class Device {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     @JsonProperty("id")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "550e8400-e29b-41d4-a716-446655440000")
+    @Schema(description = "ID unik perangkat (UUID)", example = "550e8400-e29b-41d4-a716-446655440000")
     private UUID id;
 
     @Column(name = "name", nullable = false, length = 100)
     @JsonProperty("name")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "Sensor Suhu Ruang Server")
+    @Schema(description = "Nama perangkat IoT", example = "Sensor Suhu Ruang Server")
     private String name;
 
     @Column(name = "type", nullable = false, length = 50)
     @JsonProperty("type")
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "Thermometer")
+    @Schema(description = "Tipe perangkat (misalnya, Thermometer, Barometer)", example = "Thermometer")
     private String type;
-
-    @Column(nullable = false, length = 20)
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, defaultValue = "active", example = "active")
+    
+    @Column(name = "status", nullable = false, length = 20)
+    @JsonProperty("status")
+    @Schema(description = "Status operasional perangkat", defaultValue = "active", example = "active")
     private String status = "active";
 
     public UUID getId() {
