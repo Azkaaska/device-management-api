@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from sqlalchemy.orm import Session
-from typing import Optional, Any, Annotated
+from typing import List, Optional, Annotated
 from uuid import UUID
 
 from app.api import deps
@@ -11,7 +11,7 @@ from app.core.websocket_manager import manager
 
 router = APIRouter(prefix="/devices", tags=["Telemetry"])
 
-@router.get("/{device_id}/telemetry", response_model=Any, summary="Get telemetry for a device")
+@router.get("/{device_id}/telemetry", response_model=List[reading_schemas.Reading], summary="Get telemetry for a device")
 def read_telemetry(
     device_id: Annotated[UUID, Path(example="550e8400-e29b-41d4-a716-446655440000")],
     start_time: Optional[int] = Query(default=None, example=1717488000000),

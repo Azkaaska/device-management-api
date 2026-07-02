@@ -28,7 +28,10 @@ async def notify_device_creation(device_id: str, device_name: str, device_type: 
                         "value": f"`{device_type}`",
                         "inline": True
                     }
-                ]
+                ],
+                "footer": {
+                    "text": "Shoutout to Python Backend"
+                }
             }
         ]
     }

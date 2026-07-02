@@ -5,6 +5,7 @@ from uuid import UUID
 from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status, HTTPException, Query
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.core.postgres_db import engine, Base
@@ -54,6 +55,14 @@ app = FastAPI(
     openapi_tags=tags_metadata,
     servers=servers_metadata,
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex="https?://.*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(api_router, prefix="/api/v1")

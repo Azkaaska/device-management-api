@@ -1,5 +1,6 @@
 const { Device } = require('../models');
 const sequelize = require('../config/postgres');
+const discordWebhook = require('../utils/discordWebhook');
 
 class DeviceService {
     async getAllDevices(page = 1, limit = 10) {
@@ -27,6 +28,7 @@ class DeviceService {
         try {
             const device = await Device.create(data, { transaction: t });
             await t.commit();
+            discordWebhook.sendDeviceCreatedAlert(device);
             return device;
         } catch (err) {
             await t.rollback();

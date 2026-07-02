@@ -14,19 +14,9 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 
 DEVICES = [
     {
-        "deviceId": "550e8400-e29b-41d4-a716-446655440001",
+        "deviceId": "3ca494a8-da6e-4b02-8a77-4089242f5ee2",
         "deviceType": "thermometer",
-        "topic": "buildingA/floor1/550e8400-e29b-41d4-a716-446655440001"
-    },
-    {
-        "deviceId": "550e8400-e29b-41d4-a716-446655440002",
-        "deviceType": "thermometer",
-        "topic": "buildingA/floor2/550e8400-e29b-41d4-a716-446655440002"
-    },
-    {
-        "deviceId": "550e8400-e29b-41d4-a716-446655440003",
-        "deviceType": "thermometer",
-        "topic": "buildingA/floor3/550e8400-e29b-41d4-a716-446655440003"
+        "topic": "buildingA/floor1/3ca494a8-da6e-4b02-8a77-4089242f5ee2"
     }
 ]
 

@@ -40,7 +40,9 @@ public class DiscordWebhookService {
                             Map.of("name", "Name", "value", device.getName(), "inline", true),
                             Map.of("name", "Type", "value", device.getType(), "inline", true),
                             Map.of("name", "Initial Status", "value", device.getStatus(), "inline", true)
-                    )
+                    ),
+                    "footer", Map.of("text", "Shoutout to Java Backend")
+
             );
 
             Map<String, Object> payload = Map.of(
@@ -56,29 +58,28 @@ public class DiscordWebhookService {
     }
 
     public void sendAlert(String message) {
-        if (discordWebhookUrl == null || discordWebhookUrl.isBlank()) {
-            return;
-        }
+        // if (discordWebhookUrl == null || discordWebhookUrl.isBlank()) {
+        // }
 
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        // try {
+        //     HttpHeaders headers = new HttpHeaders();
+        //     headers.setContentType(MediaType.APPLICATION_JSON);
 
-            Map<String, Object> embed = Map.of(
-                    "title", "IoT System Exception Alert",
-                    "description", message,
-                    "color", 15158332
-            );
+        //     Map<String, Object> embed = Map.of(
+        //             "title", "IoT System Exception Alert",
+        //             "description", message,
+        //             "color", 15158332
+        //     );
 
-            Map<String, Object> payload = Map.of(
-                    "embeds", List.of(embed)
-            );
+        //     Map<String, Object> payload = Map.of(
+        //             "embeds", List.of(embed)
+        //     );
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-            restTemplate.postForEntity(discordWebhookUrl, request, String.class);
+        //     HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+        //     restTemplate.postForEntity(discordWebhookUrl, request, String.class);
 
-        } catch (Exception e) {
-            System.err.println("Discord Critical Alert Drop: Webhook failed to dispatch. Message: " + e.getMessage());
-        }
+        // } catch (Exception e) {
+        //     System.err.println("Discord Critical Alert Drop: Webhook failed to dispatch. Message: " + e.getMessage());
+        // }
     }
 }

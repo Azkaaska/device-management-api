@@ -1,6 +1,125 @@
 # Device Management API — Java / Spring Boot
 
-Implementasi IoT Device Management API menggunakan **Java 25** dan **Spring Boot 4**. Lihat [README utama](../README.md) untuk dokumentasi endpoint dan arsitektur yang dibagikan antar ketiga implementasi.
+Implementasi backend IoT Device Management API menggunakan **Java 25** dan **Spring Boot 4**. Dokumen ini berisi panduan lengkap mengenai arsitektur, spesifikasi endpoint API, payload, MQTT, WebSocket, serta instruksi menjalankan aplikasi dan pengujian.
+
+---
+
+## Arsitektur & Konvensi API
+
+Proyek ini dirancang untuk menangani metadata perangkat keras (IoT) dan ingesti telemetri deret waktu (time-series).
+
+| Aspek | Detail |
+|---|---|
+| **Database Perangkat** | PostgreSQL — menyimpan metadata perangkat (`devices`) dan konfigurasi status operasional |
+| **Database Telemetri** | Apache Cassandra — menyimpan data time-series dengan partisi harian (`bucket_date`) |
+| **Broker MQTT** | Eclipse Mosquitto — aplikasi terhubung ke MQTT subscriber internal |
+| **Device ID** | UUID v4 yang dibuat secara otomatis oleh PostgreSQL |
+| **Timestamp** | Disimpan dan dikirim sebagai UNIX timestamp dalam milidetik (epoch ms) |
+| **Port Default** | Server berjalan secara default pada `http://localhost:3000` |
+
+---
+
+## Endpoint API
+
+### Perangkat (Devices)
+
+| Method | Path | Deskripsi |
+|---|---|---|
+| `GET` | `/api/v1/devices` | Ambil daftar semua perangkat (paginasi: `?page=0&limit=20`) |
+| `POST` | `/api/v1/devices` | Daftarkan perangkat baru |
+| `GET` | `/api/v1/devices/{id}` | Ambil detail perangkat berdasarkan ID |
+| `PUT` | `/api/v1/devices/{id}` | Perbarui data metadata perangkat |
+| `DELETE` | `/api/v1/devices/{id}` | Hapus perangkat (soft delete — status berubah menjadi `inactive`) |
+
+### Telemetri
+
+| Method | Path | Deskripsi |
+|---|---|---|
+| `GET` | `/api/v1/devices/{id}/telemetry` | Ambil telemetri terbaru (atau riwayat jika `?start_time` & `?end_time` disertakan) |
+| `POST` | `/api/v1/devices/{id}/telemetry` | Kirim satu data pembacaan telemetri untuk perangkat |
+
+> **Catatan query historis:** Parameter `start_time` dan `end_time` adalah UNIX timestamp dalam milidetik. Contoh:
+> `GET /api/v1/devices/{id}/telemetry?start_time=1717200000000&end_time=1717286400000&page=0&limit=20`
+
+### WebSocket (Live Dashboard)
+
+Server mengekspos koneksi WebSocket real-time pada URI:
+
+```
+ws://localhost:3000/api/ws
+```
+
+Klien dapat memfilter aliran data dengan menyertakan query parameter `device_id` pada jabat tangan WebSocket:
+- `ws://localhost:3000/api/ws?device_id=550e8400-e29b-41d4-a716-446655440000` (Hanya menerima data dari ID perangkat tersebut).
+- `ws://localhost:3000/api/ws` (Menerima data telemetri dari semua perangkat).
+
+Format payload pesan real-time yang dikirimkan ke klien:
+
+```json
+{ "type": "READING", "payload": { ... } }
+{ "type": "ALERT",   "payload": { ... } }
+```
+
+Event `ALERT` secara otomatis disiarkan apabila sensor mendeteksi suhu melebihi ambang batas (**35°C**).
+
+---
+
+## Format Payload
+
+### Body `POST /api/v1/devices`
+
+```json
+{
+  "name": "Sensor Suhu Ruang Server",
+  "type": "Thermometer",
+  "status": "active"
+}
+```
+
+### Body `POST /api/v1/devices/{id}/telemetry`
+
+```json
+{
+  "ts": 1717488000000,
+  "temperature": 28.5,
+  "humidity": 75.2
+}
+```
+
+---
+
+## Format Error
+
+Semua error dari server dikembalikan dalam struktur JSON standar (`ApiErrorResponse`):
+
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "message": "Perangkat tidak ditemukan",
+  "path": "/api/v1/devices/550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": 1717488000000
+}
+```
+
+---
+
+## Notifikasi Discord Webhook
+
+Apabila perangkat baru berhasil didaftarkan via REST API, aplikasi akan mengirimkan notifikasi berupa Rich Embed ke saluran Discord menggunakan URL webhook yang dikonfigurasi melalui variabel lingkungan `DISCORD_WEBHOOK_URL`.
+
+---
+
+## Ingesti Data MQTT
+
+Subscriber internal mendengarkan pesan MQTT dari sensor (emulator) dengan format topik:
+
+```
+buildingA/{ruangan}/{device-uuid}
+```
+
+Contoh: `buildingA/room1/550e8400-e29b-41d4-a716-446655440000`  
+Payload pesan MQTT mengikuti format payload telemetri (`ReadingInput`) yang sama dengan endpoint HTTP POST di atas.
 
 ---
 
@@ -21,18 +140,18 @@ Implementasi IoT Device Management API menggunakan **Java 25** dan **Spring Boot
 
 ## Prasyarat
 
-Pastikan layanan berikut sudah berjalan sebelum menjalankan aplikasi:
+Pastikan layanan-layanan berikut sudah berjalan sebelum meluncurkan aplikasi:
 
 - **JDK 25+**
-- **PostgreSQL** — database untuk metadata perangkat
-- **Apache Cassandra** — database untuk data telemetri time-series
-- **MQTT Broker** (mis. Eclipse Mosquitto) — untuk ingesti data sensor
+- **PostgreSQL** — database relasional untuk metadata perangkat
+- **Apache Cassandra** — database deret waktu untuk telemetri
+- **MQTT Broker** (mis. Eclipse Mosquitto) — untuk broker pengiriman pesan sensor
 
 ---
 
 ## Konfigurasi Environment
 
-Salin file `.env.example` menjadi `.env` dan isi dengan nilai yang sesuai:
+Salin file `.env.example` menjadi `.env` dan isi dengan konfigurasi Anda:
 
 ```bash
 cp .env.example .env
@@ -60,24 +179,26 @@ cp .env.example .env
 
 ---
 
-## Cara Menjalankan
+## Cara Menjalankan Aplikasi
 
 ```bash
 # Jalankan dalam mode development
 .\mvnw.cmd spring-boot:run
 
-# Atau build dulu lalu jalankan JAR-nya
+# Atau build paket JAR kemudian jalankan
 .\mvnw.cmd package -DskipTests
 java -jar target/deviceapi-0.0.1-SNAPSHOT.jar
 
 # Gunakan ./mvnw pada shell berbasis unix/linux
 ```
 
-Server akan berjalan di `http://localhost:3000`.
+Aplikasi web dan API akan siap melayani permintaan pada `http://localhost:3000`.
 
 ---
 
 ## Menjalankan Unit Test
+
+Aplikasi ini dilengkapi dengan **66 unit test** komprehensif yang menguji seluruh lapisan:
 
 ```bash
 .\mvnw.cmd test
@@ -85,21 +206,19 @@ Server akan berjalan di `http://localhost:3000`.
 # Gunakan ./mvnw pada shell berbasis unix/linux
 ```
 
-Total **66 unit test** yang mencakup semua lapisan aplikasi:
-
 | Kelas Test | Jumlah Test | Cakupan |
 |---|---|---|
-| `DeviceServiceTest` | 10 | CRUD, validasi input, soft delete, default status |
-| `TelemetryServiceTest` | 8 | Push data, pemindaian bucket, query historis, paginasi |
-| `DiscordWebhookServiceTest` | 6 | Posting webhook, URL kosong, kegagalan jaringan |
-| `MqttIngestionEngineTest` | 7 | Paket valid, perangkat tidak dikenal, topik salah, overheat |
-| `SensorWebSocketHandlerTest` | 6 | Lifecycle sesi, multi-broadcast, sesi tertutup, isolasi IOException |
-| `GlobalExceptionHandlerTest` | 6 | Semua handler exception + timestamp `ApiErrorResponse` |
-| `DeviceControllerTest` | 8 | Semua endpoint REST, format error 400/404, UUID salah |
-| `TelemetryControllerTest` | 8 | Latest/historis, push, response kosong, JSON rusak |
-| `ReadingKeyTest` | 5 | Kontrak `equals`/`hashCode`, getter |
+| `DeviceServiceTest` | 10 | Operasi CRUD perangkat, validasi input, status bawaan, soft delete |
+| `TelemetryServiceTest` | 8 | Logika push sensor, pencarian bucket tanggal, rentang historis, paginasi |
+| `DiscordWebhookServiceTest` | 6 | Posting embed notifikasi, penanganan kegagalan jaringan, URL kosong |
+| `MqttIngestionEngineTest` | 7 | Validasi pesan topik, pengabaian ID tak dikenal, aturan alarm suhu overheat |
+| `SensorWebSocketHandlerTest` | 6 | Manajemen sesi WebSocket, koneksi terisolasi, multikoneksi, kegagalan IOException |
+| `GlobalExceptionHandlerTest` | 6 | Penanganan exception HTTP global dan format respons error |
+| `DeviceControllerTest` | 8 | Panggilan REST perangkat, tanggapan 400/404, validasi UUID |
+| `TelemetryControllerTest` | 8 | Ingesti via HTTP, data terbaru, rentang historis, status empty object |
+| `ReadingKeyTest` | 5 | Kontrak kesamaan (`equals`), kode hash (`hashCode`), dan getter partisi |
 
-> Unit test controller menggunakan `MockMvcBuilders.standaloneSetup()` (tanpa Spring context penuh) agar lebih ringan dan cepat.
+> Unit test controller menggunakan `MockMvcBuilders.standaloneSetup()` untuk menjamin pengujian berjalan ringan tanpa memuat modul Spring Context penuh.
 
 ---
 
@@ -153,7 +272,7 @@ src/test/java/com/iot/deviceapi/
 
 ## Swagger / OpenAPI
 
-Dokumentasi interaktif tersedia setelah server berjalan di:
+Dokumentasi Swagger UI interaktif dapat diakses pada URI berikut ketika server berjalan:
 
 ```
 http://localhost:3000/docs-ui
@@ -163,8 +282,7 @@ http://localhost:3000/docs-ui
 
 ## Catatan Teknis
 
-- **Connection Pool (HikariCP):** Dikonfigurasi melalui variabel environment `DB_POOL_*`. Default sudah dioptimalkan untuk workload IoT dengan koneksi yang tahan lama.
-- **Partisi Cassandra:** Data telemetri dipartisi berdasarkan `(device_id, bucket_date)` dan dicluster secara descending berdasarkan `ts_device`. Query historis memerlukan iterasi per hari karena batasan partisi Cassandra.
-- **MQTT Reconnect:** `MqttIngestionEngine` menggunakan `automaticReconnect=true` dengan loop retry 5 detik sebagai fallback. Engine berjalan sebagai daemon thread agar tidak memblokir shutdown aplikasi.
-- **WebSocket Thread Safety:** `SensorWebSocketHandler` menggunakan `CopyOnWriteArrayList` sehingga thread MQTT dan HTTP dapat memanggil `broadcast()` secara bersamaan tanpa race condition.
-- **Best-effort Broadcast:** Kegagalan serialisasi atau pengiriman WebSocket tidak akan membatalkan proses penyimpanan data telemetri.
+- **Connection Pool (HikariCP):** Dikonfigurasi secara eksternal melalui variabel environment `DB_POOL_*`. Nilai default telah disetel untuk mengoptimalkan kinerja throughput koneksi database relasional.
+- **Partisi Cassandra:** Pembacaan data telemetri dipartisi berdasarkan `(device_id, bucket_date)` dan diurutkan secara menurun (`descending`) berdasarkan `ts_device`. Untuk query historis lintas hari, aplikasi melakukan beberapa query paralel per hari untuk menggabungkan hasilnya di memori.
+- **Auto-Reconnect MQTT:** subscriber menggunakan pustaka Paho dengan pengaturan `automaticReconnect=true` dan selang waktu coba ulang 5 detik agar koneksi tetap persisten apabila broker terputus.
+- **Thread Safety WebSocket:** Broadcast telemetri ke klien aktif menggunakan `CopyOnWriteArrayList` agar thread HTTP dan MQTT dapat menyebarkan telemetri secara asinkron tanpa menimbulkan masalah konkurensi.

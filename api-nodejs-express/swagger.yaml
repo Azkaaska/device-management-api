@@ -1,37 +1,63 @@
 openapi: 3.0.0
 info:
-  title: IoT Device & Telemetry API
-  description: API for managing IoT Devices and Telemetry
+  title: IoT Device & Telemetry API (Node.js / Express)
+  description: >
+    API untuk manajemen perangkat IoT dan data telemetri.
+    Perangkat disimpan di PostgreSQL; data telemetri disimpan di Apache Cassandra.
+    Real-time update tersedia melalui WebSocket dan MQTT.
   version: 1.0.0
 servers:
   - url: http://localhost:3000
-    description: Local development server
+    description: Server pengembangan lokal
 tags:
-  - name: Devices
-    description: Operations related to managing device attributes
-  - name: Telemetry
-    description: Operations related to pushing and retrieving time-series data
+  - name: Perangkat
+    description: Operasi untuk manajemen atribut perangkat IoT
+  - name: Telemetri
+    description: Operasi untuk menyimpan dan mengambil data sensor time-series
+
 paths:
-  /api/devices:
+  /api/v1/devices:
     get:
       tags:
-        - Devices
-      summary: Retrieve a list of devices
-      description: Returns an array of all registered devices
+        - Perangkat
+      summary: Ambil daftar semua perangkat
+      description: Mengembalikan daftar semua perangkat yang terdaftar dengan dukungan paginasi.
+      operationId: getAllDevices
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            example: 1
+          description: Nomor halaman untuk paginasi
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+            example: 10
+          description: Jumlah item per halaman
       responses:
         '200':
-          description: A JSON array of devices
+          description: Daftar perangkat berhasil diambil
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Device'
+                $ref: '#/components/schemas/DeviceListResponse'
+        '500':
+          description: Kesalahan server internal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error500'
+
     post:
       tags:
-        - Devices
-      summary: Create a new device
-      description: Registers a new IoT device in the system
+        - Perangkat
+      summary: Tambah perangkat baru
+      description: Mendaftarkan perangkat IoT baru ke dalam sistem.
+      operationId: createDevice
       requestBody:
         required: true
         content:
@@ -40,42 +66,67 @@ paths:
               $ref: '#/components/schemas/DeviceInput'
       responses:
         '201':
-          description: Device created successfully
+          description: Perangkat berhasil dibuat
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Device'
         '400':
-          description: Invalid input
-  /api/devices/{device_id}:
+          description: Data permintaan tidak valid (field name dan type wajib diisi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error400'
+        '500':
+          description: Kesalahan server internal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error500'
+
+  /api/v1/devices/{id}:
     parameters:
       - in: path
-        name: device_id
+        name: id
         required: true
         schema:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
-        description: Device UUID
+        description: UUID dari perangkat
+
     get:
       tags:
-        - Devices
-      summary: Get a device by ID
-      description: Returns detailed information about a specific device
+        - Perangkat
+      summary: Ambil perangkat berdasarkan ID
+      description: Mengembalikan detail informasi dari satu perangkat berdasarkan UUID-nya.
+      operationId: getDeviceById
       responses:
         '200':
-          description: Device details
+          description: Detail perangkat berhasil diambil
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Device'
         '404':
-          description: Device not found
+          description: Perangkat dengan ID tersebut tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error404Device'
+        '500':
+          description: Kesalahan server internal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error500'
+
     put:
       tags:
-        - Devices
-      summary: Update a device
-      description: Updates the attributes of an existing device
+        - Perangkat
+      summary: Perbarui perangkat
+      description: Memperbarui atribut dari perangkat yang sudah ada.
+      operationId: updateDevice
       requestBody:
         required: true
         content:
@@ -84,72 +135,154 @@ paths:
               $ref: '#/components/schemas/DeviceInput'
       responses:
         '200':
-          description: Device updated successfully
+          description: Perangkat berhasil diperbarui
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Device'
         '400':
-          description: Invalid input
+          description: Data permintaan tidak valid (field name dan type wajib diisi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error400'
         '404':
-          description: Device not found
+          description: Perangkat dengan ID tersebut tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error404Device'
+        '500':
+          description: Kesalahan server internal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error500'
+
     delete:
       tags:
-        - Devices
-      summary: Delete a device (Soft Delete)
-      description: Soft deletes a device by setting its status to INACTIVE
+        - Perangkat
+      summary: Hapus perangkat (Soft Delete)
+      description: Menonaktifkan perangkat secara logis dengan mengubah statusnya menjadi `inactive`. Data tidak dihapus dari database.
+      operationId: deleteDevice
       responses:
         '204':
-          description: Device deactivated successfully
+          description: Perangkat berhasil dinonaktifkan, tidak ada konten yang dikembalikan
         '404':
-          description: Device not found
-  /api/devices/{device_id}/telemetry:
+          description: Perangkat dengan ID tersebut tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error404Device'
+        '500':
+          description: Kesalahan server internal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error500'
+
+  /api/v1/devices/{id}/telemetry:
     parameters:
       - in: path
-        name: device_id
+        name: id
         required: true
         schema:
           type: string
           format: uuid
           example: 550e8400-e29b-41d4-a716-446655440000
-        description: Device UUID
+        description: UUID dari perangkat
+
     get:
       tags:
-        - Telemetry
-      summary: Get telemetry for a device
-      description: Retrieves the single most recent telemetry record, or a list of historical readings if start_time and end_time are provided.
+        - Telemetri
+      summary: Ambil data telemetri perangkat
+      description: >
+        Mengembalikan data telemetri untuk perangkat tertentu.
+        - Tanpa parameter `start_time` / `end_time`: mengembalikan **satu** pembacaan terbaru.
+        - Dengan parameter `start_time` dan `end_time`: mengembalikan **daftar** pembacaan historis dengan paginasi.
+      operationId: getTelemetry
       parameters:
         - in: query
           name: start_time
           schema:
             type: integer
-            example: 1780894400000
-          description: Query range start timestamp (ms)
+            format: int64
+            example: 1780890000000
+          description: Timestamp awal rentang pencarian (milidetik Unix)
         - in: query
           name: end_time
           schema:
             type: integer
+            format: int64
             example: 1780894459999
-          description: Query range end timestamp (ms)
+          description: Timestamp akhir rentang pencarian (milidetik Unix)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+            example: 1
+          description: Nomor halaman untuk paginasi (hanya berlaku pada mode historis)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            example: 20
+          description: Jumlah item per halaman (hanya berlaku pada mode historis)
       responses:
         '200':
-          description: Telemetry data (object or array)
+          description: Data telemetri berhasil diambil
           content:
             application/json:
               schema:
                 oneOf:
                   - $ref: '#/components/schemas/Reading'
-                  - type: array
-                    items:
-                      $ref: '#/components/schemas/Reading'
-                  - type: object
+                  - $ref: '#/components/schemas/TelemetryListResponse'
+              examples:
+                DataTerbaru:
+                  summary: Satu pembacaan terbaru (tanpa query time range)
+                  value:
+                    device_id: "550e8400-e29b-41d4-a716-446655440000"
+                    bucket_date: "2026-07-03"
+                    ts_device: 1780894400000
+                    ts_receive: 1780894401234
+                    temperature: 24.5
+                    humidity: 60.2
+                DataHistoris:
+                  summary: Daftar pembacaan historis (dengan query time range)
+                  value:
+                    data:
+                      - device_id: "550e8400-e29b-41d4-a716-446655440000"
+                        bucket_date: "2026-07-03"
+                        ts_device: 1780894400000
+                        ts_receive: 1780894401234
+                        temperature: 24.5
+                        humidity: 60.2
+                    pagination:
+                      total_items: 1
+                      total_pages: 1
+                      current_page: 1
+                      limit: 20
         '404':
-          description: Device not found
+          description: Perangkat dengan ID tersebut tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error404Device'
+        '500':
+          description: Kesalahan server internal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error500'
+
     post:
       tags:
-        - Telemetry
-      summary: Push telemetry to a device
-      description: Records a new telemetry data point for a specific device
+        - Telemetri
+      summary: Kirim data telemetri ke perangkat
+      description: Menyimpan satu data pembacaan sensor baru untuk perangkat tertentu. Timestamp penerimaan (`ts_receive`) dicatat otomatis oleh server.
+      operationId: postTelemetry
       requestBody:
         required: true
         content:
@@ -158,108 +291,227 @@ paths:
               $ref: '#/components/schemas/ReadingInput'
       responses:
         '201':
-          description: Telemetry saved successfully
+          description: Data telemetri berhasil disimpan
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Reading'
+        '400':
+          description: Data permintaan tidak valid (field temperature dan humidity wajib diisi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error400Telemetry'
         '404':
-          description: Device not found
+          description: Perangkat dengan ID tersebut tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error404Device'
+        '500':
+          description: Kesalahan server internal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error500'
+
 components:
   schemas:
+    # ─── Perangkat ────────────────────────────────────────────────────────────
+
     Device:
       type: object
-      required:
-        - device_id
-        - device_name
-        - device_type
-        - status
-        - created_at
-        - updated_at
-      properties:
-        device_id:
-          type: string
-          format: uuid
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        device_name:
-          type: string
-          example: "Sensor Suhu Ruang Server"
-        device_type:
-          type: string
-          example: "Thermometer"
-        status:
-          type: string
-          example: "ACTIVE"
-        firmware_version:
-          type: string
-          example: "v2.1.0"
-        device_metadata:
-          type: object
-          example:
-            floor: 3
-            room: "301"
-        created_at:
-          type: integer
-          format: int64
-          example: 1780894449946
-        updated_at:
-          type: integer
-          format: int64
-          example: 1780894449946
-    DeviceInput:
-      type: object
-      required:
-        - device_name
-        - device_type
-      properties:
-        device_name:
-          type: string
-          example: "Sensor Suhu Ruang Server"
-        device_type:
-          type: string
-          example: "Thermometer"
-        status:
-          type: string
-          example: "ACTIVE"
-        firmware_version:
-          type: string
-          example: "v2.1.0"
-        device_metadata:
-          type: object
-          example:
-            floor: 3
-            room: "301"
-    Reading:
-      type: object
+      description: Representasi lengkap dari sebuah perangkat IoT yang tersimpan di PostgreSQL
       required:
         - id
-        - device_id
-        - ts
-        - sensor_values
+        - name
+        - type
+        - status
       properties:
         id:
-          type: integer
-          example: 1
+          type: string
+          format: uuid
+          description: UUID unik perangkat yang dibuat otomatis
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: Nama perangkat yang dapat dibaca manusia
+          example: "Sensor Suhu Ruang Server"
+        type:
+          type: string
+          description: Jenis atau kategori perangkat
+          example: "Thermometer"
+        status:
+          type: string
+          description: Status aktif perangkat. Nilai yang mungkin adalah `active` atau `inactive`.
+          enum:
+            - active
+            - inactive
+          example: "active"
+
+    DeviceInput:
+      type: object
+      description: Data yang diperlukan untuk membuat atau memperbarui perangkat
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          description: Nama perangkat (wajib)
+          example: "Sensor Suhu Ruang Server"
+        type:
+          type: string
+          description: Jenis perangkat (wajib)
+          example: "Thermometer"
+        status:
+          type: string
+          description: Status awal perangkat. Default adalah `active`.
+          enum:
+            - active
+            - inactive
+          example: "active"
+
+    DeviceListResponse:
+      type: object
+      description: Respons terstruktur untuk daftar perangkat dengan informasi paginasi
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ─── Telemetri ────────────────────────────────────────────────────────────
+
+    Reading:
+      type: object
+      description: Satu rekaman pembacaan sensor yang tersimpan di Apache Cassandra
+      required:
+        - device_id
+        - bucket_date
+        - ts_device
+        - ts_receive
+        - temperature
+        - humidity
+      properties:
         device_id:
           type: string
           format: uuid
+          description: UUID perangkat yang mengirim data
           example: "550e8400-e29b-41d4-a716-446655440000"
+        bucket_date:
+          type: string
+          format: date
+          description: Tanggal bucket partisi Cassandra dalam format YYYY-MM-DD (berdasarkan waktu penerimaan)
+          example: "2026-07-03"
+        ts_device:
+          type: integer
+          format: int64
+          description: Timestamp saat data direkam oleh perangkat (milidetik Unix). Dikirim oleh klien atau diisi otomatis jika tidak ada.
+          example: 1780894400000
+        ts_receive:
+          type: integer
+          format: int64
+          description: Timestamp saat server menerima data (milidetik Unix). Dicatat otomatis oleh server.
+          example: 1780894401234
+        temperature:
+          type: number
+          format: float
+          description: Nilai suhu yang diukur (dalam derajat Celsius)
+          example: 24.5
+        humidity:
+          type: number
+          format: float
+          description: Nilai kelembapan relatif yang diukur (dalam persen)
+          example: 60.2
+
+    ReadingInput:
+      type: object
+      description: Data yang diperlukan untuk menyimpan satu pembacaan sensor
+      required:
+        - temperature
+        - humidity
+      properties:
+        temperature:
+          type: number
+          format: float
+          description: Nilai suhu (wajib, dalam derajat Celsius)
+          example: 24.5
+        humidity:
+          type: number
+          format: float
+          description: Nilai kelembapan relatif (wajib, dalam persen)
+          example: 60.2
         ts:
           type: integer
           format: int64
-          example: 1780894449950
-        sensor_values:
-          type: object
-          example:
-            temperature: 24.5
-            humidity: 60
-    ReadingInput:
+          description: Timestamp perangkat opsional (milidetik Unix). Jika tidak disertakan, server akan menggunakan waktu penerimaan.
+          example: 1780894400000
+
+    TelemetryListResponse:
       type: object
-      required:
-        - sensor_values
+      description: Respons terstruktur untuk daftar data telemetri historis dengan paginasi
       properties:
-        sensor_values:
-          type: object
-          example:
-            temperature: 24.5
-            humidity: 60
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reading'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ─── Umum ─────────────────────────────────────────────────────────────────
+
+    Pagination:
+      type: object
+      description: Metadata paginasi yang menyertai respons daftar
+      properties:
+        total_items:
+          type: integer
+          description: Total keseluruhan item yang tersedia
+          example: 42
+        total_pages:
+          type: integer
+          description: Total halaman yang tersedia
+          example: 5
+        current_page:
+          type: integer
+          description: Nomor halaman saat ini
+          example: 1
+        limit:
+          type: integer
+          description: Jumlah item yang diminta per halaman
+          example: 10
+
+    Error400:
+      type: object
+      description: Respons error validasi untuk endpoint perangkat
+      properties:
+        error:
+          type: string
+          example: "name and type parameters are required"
+
+    Error400Telemetry:
+      type: object
+      description: Respons error validasi untuk endpoint telemetri
+      properties:
+        error:
+          type: string
+          example: "temperature and humidity parameters are required"
+
+    Error404Device:
+      type: object
+      description: Respons error saat perangkat tidak ditemukan
+      properties:
+        error:
+          type: string
+          example: "Device not found"
+
+    Error500:
+      type: object
+      description: Respons error umum untuk kesalahan server internal yang tidak terduga
+      properties:
+        error:
+          type: string
+          example: "Internal server error"

@@ -3,6 +3,7 @@ const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
 const http = require('http');
+const cors = require('cors');
 
 const { sequelize } = require('./src/models');
 const apiRouter = require('./src/routes');
@@ -17,6 +18,10 @@ app.use(express.json());
 app.disable('x-powered-by');
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors({
+    origin: true,
+    credentials: true
+}))
 
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
 app.use('/docs-ui', swaggerUi.serve, swaggerUi.setup(swaggerDocument));

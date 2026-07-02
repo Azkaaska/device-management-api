@@ -86,7 +86,7 @@ class DiscordWebhookServiceTest {
 
         discordWebhookService.sendAlert("CRITICAL OVERHEAT");
 
-        ArgumentCaptor<HttpEntity> captor = ArgumentCaptor.forClass(HttpEntity.class);
+        ArgumentCaptor<HttpEntity<?>> captor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(String.class));
         assertThat(captor.getValue().getBody().toString()).contains("CRITICAL OVERHEAT");
     }

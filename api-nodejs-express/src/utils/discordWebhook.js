@@ -19,20 +19,23 @@ async function sendDeviceCreatedAlert(device) {
                 fields: [
                     {
                         name: "Device UUID",
-                        value: `\`${device.device_id}\``,
+                        value: `\`${device.id}\``,
                         inline: false
                     },
                     {
                         name: "Device Name",
-                        value: `\`${device.device_name}\``,
+                        value: `\`${device.name}\``,
                         inline: true
                     },
                     {
                         name: "Device Type",
-                        value: `\`${device.device_type}\``,
+                        value: `\`${device.type}\``,
                         inline: true
                     }
-                ]
+                ],
+                footer: {
+                    text: "Shoutout to Node.js Backend"
+                }
             }
         ]
     };
@@ -50,7 +53,7 @@ async function sendDeviceCreatedAlert(device) {
             throw new Error(`Discord API responded with status ${response.status}`);
         }
 
-        console.log(`[Discord Webhook]: Alert delivered for device ${device.device_id}`);
+        console.log(`[Discord Webhook]: Alert delivered for device ${device.id}`);
     } catch (err) {
         console.error(`[Discord Webhook Error]: Failed to dispatch alert: ${err.message}`);
     }
